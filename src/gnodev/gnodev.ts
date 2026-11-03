@@ -6,6 +6,7 @@ import { CommandFactory } from '../commands';
 import { getGnoConfig } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
 import { getBinPath, getWorkspaceFolderPath } from '../util';
+import { killProcessTree } from '../utils/processUtils';
 import { GnodevLog, gnowebAddress, parseGnodevLog } from './logs';
 
 const RUNNING_CONTEXT = 'gno.gnodev.running';
@@ -14,6 +15,8 @@ const READY_DELAY_MS = 500;
 
 interface GnodevServer {
 	process: cp.ChildProcess;
+	/** Resolves when the process has exited and released its ports. */
+	exited: Promise<void>;
 	/** gnoweb address as gnodev reports it, reachable from the extension host. */
 	addr?: string;
 	/** gnoweb address reachable from the UI, which differs in remote setups. */
@@ -22,6 +25,8 @@ interface GnodevServer {
 }
 
 let server: GnodevServer | undefined;
+/** Resolves when the last stopped gnodev has exited. */
+let lastExit: Promise<void> = Promise.resolve();
 let channel: vscode.LogOutputChannel | undefined;
 
 function output(): vscode.LogOutputChannel {
@@ -51,7 +56,13 @@ function writeLog(log: GnodevLog) {
  * there in a terminal would. Without a file, it runs in the workspace folder.
  */
 export const startGnodev: CommandFactory = (ctx) => async () => {
-	stopGnodev();
+	// Wait for the previous gnodev to release its ports. Loop as another start
+	// may have spawned or stopped one meanwhile.
+	let exit: Promise<void>;
+	do {
+		exit = stopGnodev();
+		await exit;
+	} while (server || exit !== lastExit);
 
 	const editor =
 		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
@@ -68,7 +79,8 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 
 	output().info(`starting ${bin} ${args.join(' ')} in ${cwd}`);
 	const proc = cp.spawn(bin, args, { cwd, env: toolExecutionEnvironment() });
-	const current: GnodevServer = { process: proc };
+	const exited = new Promise<void>((resolve) => proc.once('close', () => resolve()));
+	const current: GnodevServer = { process: proc, exited };
 	server = current;
 	vscode.commands.executeCommand('setContext', RUNNING_CONTEXT, true);
 
@@ -111,7 +123,7 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 		if (server !== current) {
 			return;
 		}
-		stopGnodev();
+		void stopGnodev();
 		if (failed) {
 			vscode.window.showErrorMessage(message, 'Show Output').then((s) => s && output().show());
 		}
@@ -130,16 +142,21 @@ async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: s
 		vscode.window.showInformationMessage('gnodev is ready. gnoweb is disabled.');
 		return;
 	}
-	s.externalUri = await vscode.env.asExternalUri(vscode.Uri.parse(s.addr));
+	const externalUri = await vscode.env.asExternalUri(vscode.Uri.parse(s.addr));
+	if (server !== s) {
+		return;
+	}
+	s.externalUri = externalUri;
 	vscode.window.showInformationMessage(`gnodev started at ${s.addr}`);
 	if (openBrowser === 'external') {
-		vscode.env.openExternal(s.externalUri);
+		vscode.env.openExternal(externalUri);
 	} else if (openBrowser !== 'none') {
-		showPanel(extensionUri, s, openBrowser === 'current' ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside);
+		const column = openBrowser === 'current' ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
+		showPanel(extensionUri, s, externalUri.toString(), column);
 	}
 }
 
-function showPanel(extensionUri: vscode.Uri, s: GnodevServer, column: vscode.ViewColumn) {
+function showPanel(extensionUri: vscode.Uri, s: GnodevServer, url: string, column: vscode.ViewColumn) {
 	if (!s.panel) {
 		s.panel = vscode.window.createWebviewPanel(VIEW_TYPE, 'gnodev', column, {
 			enableScripts: true,
@@ -153,11 +170,10 @@ function showPanel(extensionUri: vscode.Uri, s: GnodevServer, column: vscode.Vie
 		s.panel.onDidDispose(() => {
 			s.panel = undefined;
 			if (server === s) {
-				stopGnodev();
+				void stopGnodev();
 			}
 		});
 	}
-	const url = s.externalUri!.toString();
 	const origin = new URL(url).origin;
 	s.panel.webview.html = `<!DOCTYPE html>
 <html>
@@ -174,20 +190,23 @@ function showPanel(extensionUri: vscode.Uri, s: GnodevServer, column: vscode.Vie
 }
 
 /**
- * Stops the running gnodev and closes its gnoweb panel.
+ * Stops the running gnodev and closes its gnoweb panel. Resolves once the
+ * last stopped gnodev has exited, even when none is running anymore.
  */
-export function stopGnodev() {
+export function stopGnodev(): Promise<void> {
 	const s = server;
 	if (!s) {
-		return;
+		return lastExit;
 	}
 	server = undefined;
 	vscode.commands.executeCommand('setContext', RUNNING_CONTEXT, false);
 	s.panel?.dispose();
-	if (s.process.exitCode === null) {
+	lastExit = s.exited;
+	if (s.process.exitCode === null && s.process.signalCode === null) {
 		output().info('stopping gnodev');
-		s.process.kill();
+		void killProcessTree(s.process, (msg) => output().error(msg));
 	}
+	return lastExit;
 }
 
 /**

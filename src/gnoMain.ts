@@ -183,7 +183,7 @@ export function deactivate() {
 		killRunningPprof(),
 		Promise.resolve(cleanupTempDir()),
 		Promise.resolve(disposeGoStatusBar()),
-		Promise.resolve(stopGnodev())
+		stopGnodev()
 	]);
 }
 
