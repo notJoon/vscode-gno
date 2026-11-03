@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-useless-escape */
+
 /* eslint-disable no-async-promise-executor */
 /* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -342,7 +342,7 @@ export function showTestOutput() {
 export function cancelRunningTests(): Thenable<boolean> {
 	return new Promise<boolean>((resolve, reject) => {
 		runningTestProcesses.forEach((tp) => {
-			killProcessTree(tp);
+			void killProcessTree(tp);
 		});
 		// All processes are now dead. Empty the array to prepare for the next run.
 		runningTestProcesses.splice(0, runningTestProcesses.length);

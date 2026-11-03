@@ -1,0 +1,5 @@
+# Development tool versions, also used by the GitHub workflows.
+# Run `mise install` to set up the environment.
+[tools]
+node = "26"
+go = "1.27"

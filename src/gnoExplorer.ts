@@ -179,7 +179,10 @@ class EnvTree implements vscode.TreeItem {
 	contextValue = 'gno:explorer:envtree';
 	collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
 	iconPath = new vscode.ThemeIcon('symbol-folder');
-	constructor(public description = '', public workspace?: vscode.Uri) {}
+	constructor(
+		public description = '',
+		public workspace?: vscode.Uri
+	) {}
 }
 
 function isEnvTree(item?: vscode.TreeItem): item is EnvTree {
@@ -191,7 +194,10 @@ class EnvTreeItem implements vscode.TreeItem {
 	label: string;
 	contextValue?: string;
 	tooltip?: string;
-	constructor(public key: string, public value: string) {
+	constructor(
+		public key: string,
+		public value: string
+	) {
 		this.label = `${key}=${replaceHome(value)}`;
 		this.contextValue = 'gno:explorer:envitem';
 		if (GoEnv.fileVars.has(key)) {
@@ -343,7 +349,10 @@ interface CacheEntry<T> {
 class Cache<T> {
 	private cache = new Map<string, CacheEntry<T>>();
 
-	constructor(private fn: (key: string) => Promise<T>, private ttl: number) {}
+	constructor(
+		private fn: (key: string) => Promise<T>,
+		private ttl: number
+	) {}
 
 	async get(key: string, ttl = this.ttl) {
 		const cache = this.cache.get(key);

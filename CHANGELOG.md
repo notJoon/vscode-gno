@@ -1,3 +1,16 @@
+## 1.0.2 (2026-11-03)
+
+
+### Bug Fixes
+
+* activate the extension when gno is not installed ([#2](https://github.com/notJoon/vscode-gno/pull/2))
+
+
+### Miscellaneous
+
+* update all dependencies to their latest versions and remove the unused ones. The minimum VS Code version is now 1.91 ([#2](https://github.com/notJoon/vscode-gno/pull/2))
+* set up the development tools (Node.js, Go) with mise, also in the GitHub workflows ([#2](https://github.com/notJoon/vscode-gno/pull/2))
+
 ## [1.0.1](https://github.com/gnoverse/vscode-gno/compare/v1.0.0...v1.0.1) (2025-09-26)
 
 

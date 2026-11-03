@@ -9,13 +9,14 @@ import kill = require('tree-kill');
 
 // Kill a process and its children, returning a promise.
 export function killProcessTree(p: ChildProcess, logger: (...args: any[]) => void = console.log): Promise<void> {
-	if (!p || !p.pid || p.exitCode !== null) {
+	const pid = p?.pid;
+	if (!pid || p.exitCode !== null) {
 		return Promise.resolve();
 	}
 	return new Promise((resolve) => {
-		kill(p.pid, (err) => {
+		kill(pid, (err) => {
 			if (err) {
-				logger(`Error killing process ${p.pid}: ${err}`);
+				logger(`Error killing process ${pid}: ${err}`);
 			}
 			resolve();
 		});

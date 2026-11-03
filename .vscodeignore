@@ -2,8 +2,7 @@
 **/tslint.json
 .DS_Store
 .editorconfig
-.eslintignore
-.eslintrc.json
+eslint.config.js
 .git/
 .github/
 .gitignore
@@ -24,4 +23,5 @@ test/
 third_party/
 tools/
 tsconfig.json
-typings/
+mise.toml
+.claude/

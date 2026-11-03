@@ -1,11 +1,15 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
+		"module": "node20",
 		"outDir": "out",
 		"sourceMap": true,
 		"target": "es2022",
 		"lib": [
 			"es2022"
+		],
+		"types": [
+			"node",
+			"mocha"
 		],
 		"strict": true,
 		"esModuleInterop": true,

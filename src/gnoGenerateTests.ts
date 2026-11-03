@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable eqeqeq */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /*---------------------------------------------------------
@@ -198,7 +197,7 @@ function generateTests(
 
 			try {
 				if (err && (<any>err).code === 'ENOENT') {
-					promptForMissingTool('gotests');
+					void promptForMissingTool('gotests');
 					return resolve(false);
 				}
 				if (err) {

@@ -37,7 +37,10 @@ export class GoVersion {
 	public isDevel?: boolean;
 	private devVersion?: string;
 
-	constructor(public binaryPath: string, public version: string) {
+	constructor(
+		public binaryPath: string,
+		public version: string
+	) {
 		const matchesGno = /^gno version: (.+?)\s*$/.exec(version);
 		const matchesRelease = /^go version go(\d\.\d+\S*)\s+/.exec(version);
 		const matchesDevel = /^go version devel go(\d\.\d+\S*)\s+/.exec(version);
@@ -429,7 +432,7 @@ export function getCurrentGoPath(workspaceUri?: vscode.Uri): string {
 				if (fs.statSync(path.join(currentRoot, 'src')).isDirectory()) {
 					inferredGopath = currentRoot;
 				}
-			} catch (e) {
+			} catch {
 				// No op
 			}
 		}
@@ -439,7 +442,7 @@ export function getCurrentGoPath(workspaceUri?: vscode.Uri): string {
 				if (fs.existsSync(path.join(inferredGopath, 'gno.mod'))) {
 					inferredGopath = '';
 				}
-			} catch (e) {
+			} catch {
 				// No op
 			}
 		}
@@ -593,7 +596,7 @@ export function runTool(
 	if (token) {
 		token.onCancellationRequested(() => {
 			if (p) {
-				killProcessTree(p);
+				void killProcessTree(p);
 			}
 		});
 	}
