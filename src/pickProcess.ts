@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-async-promise-executor */
 /*---------------------------------------------------------
  * Copyright 2021 The Go Authors. All rights reserved.
@@ -199,9 +198,9 @@ async function getAllProcesses(): Promise<AttachItem[]> {
 
 async function runCommand(
 	processCmd: ProcessListCommand
-): Promise<{ err: cp.ExecException | null; stdout: string; stderr: string }> {
+): Promise<{ err: cp.ExecFileException | null; stdout: string; stderr: string }> {
 	return await new Promise<{
-		err: cp.ExecException | null;
+		err: cp.ExecFileException | null;
 		stdout: string;
 		stderr: string;
 	}>((resolve) => {

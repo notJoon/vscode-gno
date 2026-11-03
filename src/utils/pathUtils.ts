@@ -164,7 +164,7 @@ export function executableFileExists(filePath: string): boolean {
 		if (exists) {
 			fs.accessSync(filePath, fs.constants.F_OK | fs.constants.X_OK);
 		}
-	} catch (e) {
+	} catch {
 		exists = false;
 	}
 	return exists;
@@ -173,7 +173,7 @@ export function executableFileExists(filePath: string): boolean {
 export function fileExists(filePath: string): boolean {
 	try {
 		return fs.statSync(filePath).isFile();
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }
@@ -182,7 +182,7 @@ export async function dirExists(p: string): Promise<boolean> {
 	try {
 		const stat = promisify(fs.stat);
 		return (await stat(p)).isDirectory();
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }

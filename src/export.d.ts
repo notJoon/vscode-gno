@@ -9,7 +9,7 @@ export { ToolAtVersion } from './gnoTools';
 export interface CommandInvocation {
 	binPath: string;
 	args?: string[] | string;
-	env?: Object;
+	env?: object;
 	cwd?: string;
 }
 

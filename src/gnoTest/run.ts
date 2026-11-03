@@ -68,7 +68,7 @@ class TestRunOutput implements OutputChannel {
 	}
 
 	clear() {}
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 	show(...args: unknown[]) {}
 	hide() {}
 	dispose() {}
@@ -154,12 +154,11 @@ export class GoTestRunner {
 		}
 
 		const test = tests[0].item;
-		const { kind, name = '' } = GoTest.parseId(test.id);
+		const { name = '' } = GoTest.parseId(test.id);
 		if (!test.uri) return;
 		const doc = await vscode.workspace.openTextDocument(test.uri);
 		await doc.save();
 
-		const goConfig = getGnoConfig(test.uri);
 		/*const { testFunctions, suiteToTest } = await getTestFunctionsAndTestSuite(
 			kind === 'benchmark',
 			this.goCtx,

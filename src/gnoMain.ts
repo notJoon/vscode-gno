@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  * Modification copyright 2020 The Go Authors. All rights reserved.
@@ -102,8 +100,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	await maybeInstallImportantTools(cfg.get('alternateTools'));
 	await commands.startLanguageServer(ctx, goCtx)(RestartReason.ACTIVATION);
 
-	suggestUpdates();
-	offerToInstallLatestGoVersion(ctx);
+	void suggestUpdates();
+	void offerToInstallLatestGoVersion(ctx);
 
 	registerCommand('gno.builds.run', commands.runBuilds);
 	registerCommand('gno.environment.status', expandGoStatusBar);
@@ -203,7 +201,7 @@ function addOnDidChangeConfigListeners(ctx: vscode.ExtensionContext) {
 				e.affectsConfiguration('gno.toolsEnvVars') ||
 				e.affectsConfiguration('gno.testEnvFile')
 			) {
-				updateGoVarsFromConfig(goCtx);
+				void updateGoVarsFromConfig(goCtx);
 			}
 			// If there was a change in "toolsGopath" setting, then clear cache for go tools
 			if (getToolsGopath() !== getToolsGopath(false)) {
@@ -295,7 +293,7 @@ function addOnChangeActiveTextEditorListeners(ctx: vscode.ExtensionContext) {
 	[updateGoStatusBar].forEach((listener) => {
 		// Call the listeners on initilization for current active text editor
 		if (vscode.window.activeTextEditor) {
-			listener(vscode.window.activeTextEditor);
+			void listener(vscode.window.activeTextEditor);
 		}
 		vscode.window.onDidChangeActiveTextEditor(listener, null, ctx.subscriptions);
 	});
@@ -303,7 +301,7 @@ function addOnChangeActiveTextEditorListeners(ctx: vscode.ExtensionContext) {
 
 function checkToolExists(tool: string) {
 	if (tool === getBinPath(tool)) {
-		promptForMissingTool(tool);
+		void promptForMissingTool(tool);
 	}
 }
 

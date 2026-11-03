@@ -1,37 +1,24 @@
 import * as path from 'path';
-import glob from 'glob';
+import { glob } from 'glob';
 
-export function run(): Promise<void> {
-	// Create the mocha test
-	const Mocha = require('mocha');
+export async function run(): Promise<void> {
+	// mocha is ESM only, so it is loaded with a dynamic import.
+	const { default: Mocha } = await import('mocha');
 	const mocha = new Mocha({
 		ui: 'tdd',
 		color: true
 	});
 
 	const testsRoot = path.resolve(__dirname, '..');
+	const files = await glob('**/**.test.js', { cwd: testsRoot });
+	files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
 	return new Promise((resolve, reject) => {
-		glob('**/**.test.js', { cwd: testsRoot }, (err: Error | null, files: string[]) => {
-			if (err) {
-				return reject(err);
-			}
-
-			// Add files to the test suite
-			files.forEach((f: string) => mocha.addFile(path.resolve(testsRoot, f)));
-
-			try {
-				// Run the mocha test
-				mocha.run((failures: number) => {
-					if (failures > 0) {
-						reject(new Error(`${failures} tests failed.`));
-					} else {
-						resolve();
-					}
-				});
-			} catch (err) {
-				console.error(err);
-				reject(err);
+		mocha.run((failures) => {
+			if (failures > 0) {
+				reject(new Error(`${failures} tests failed.`));
+			} else {
+				resolve();
 			}
 		});
 	});

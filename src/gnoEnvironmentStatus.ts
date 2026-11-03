@@ -1,5 +1,5 @@
 /* eslint-disable no-prototype-builtins */
-/* eslint-disable prefer-const */
+
 /*---------------------------------------------------------
  * Copyright 2020 The Go Authors. All rights reserved.
  * Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -29,11 +29,14 @@ import {
 import vscode = require('vscode');
 import { installTool } from './gnoInstallTools';
 import { CommandFactory } from './commands';
-import fetch from 'node-fetch';
 
 export class GoEnvironmentOption implements vscode.QuickPickItem {
 	readonly description: string;
-	constructor(readonly binpath: string, readonly label: string, readonly available = true) {
+	constructor(
+		readonly binpath: string,
+		readonly label: string,
+		readonly available = true
+	) {
 		this.description = available ? binpath : `download ${binpath}`;
 	}
 }
@@ -335,7 +338,7 @@ export function addGoRuntimeBaseToPATH(newGoRuntimeBase: string) {
 		);
 		if (terminalShellArgs.includes('-l') || terminalShellArgs.includes('--login')) {
 			for (const term of vscode.window.terminals) {
-				updateIntegratedTerminal(term);
+				void updateIntegratedTerminal(term);
 			}
 			if (terminalCreationListener) {
 				terminalCreationListener.dispose();
@@ -483,7 +486,7 @@ async function fetchDownloadableGoVersions(): Promise<GoEnvironmentOption[]> {
 	try {
 		const response = await fetch('https://go.dev/dl/?mode=json');
 		webResults = (await response.json()) as GoVersionWebResult[];
-	} catch (error) {
+	} catch {
 		return [];
 	}
 
@@ -521,7 +524,7 @@ export async function getLatestGoVersions(): Promise<GoEnvironmentOption[]> {
 				timestamp: now,
 				goVersions: results
 			});
-		} catch (e) {
+		} catch {
 			results = [];
 		}
 	}
@@ -618,7 +621,7 @@ export async function offerToInstallLatestGoVersion(ctx: Pick<vscode.ExtensionCo
 						neverAgain
 					)
 					.then((selection) => {
-						selection?.command();
+						void selection?.command();
 						removeGoStatus(STATUS_BAR_ITEM_NAME);
 					});
 			})

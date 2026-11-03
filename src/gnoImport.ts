@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  * Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -54,7 +54,7 @@ async function askUserForImport(goCtx: GoExtensionContext): Promise<string | und
 		return vscode.window.showQuickPick(packages);
 	} catch (err) {
 		if (typeof err === 'string' && err.startsWith(missingToolMsg)) {
-			promptForMissingTool(err.substr(missingToolMsg.length));
+			void promptForMissingTool(err.substr(missingToolMsg.length));
 		}
 	}
 }
@@ -66,7 +66,7 @@ export const addImport: CommandFactory = (ctx, goCtx) => (arg: { importPath: str
 		return;
 	}
 	const p = arg && arg.importPath ? Promise.resolve(arg.importPath) : askUserForImport(goCtx);
-	p.then(async (imp) => {
+	void p.then(async (imp) => {
 		if (!imp) {
 			return;
 		}

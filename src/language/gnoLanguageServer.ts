@@ -31,7 +31,6 @@ import {
 	ResponseError,
 	RevealOutputChannelOn
 } from 'vscode-languageclient';
-import moment from 'moment';
 import { LanguageClient, ServerOptions } from 'vscode-languageclient/node';
 import { getGnoConfig, getGnoplsConfig, getExtensionInfo } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
@@ -52,10 +51,9 @@ import {
 } from '../util';
 import { getToolFromToolPath } from '../utils/pathUtils';
 import { CompletionItemKind, FoldingContext } from 'vscode';
-import { ProvideFoldingRangeSignature } from 'vscode-languageclient/lib/common/foldingRange';
+import { ProvideFoldingRangeSignature } from 'vscode-languageclient';
 import { CommandFactory } from '../commands';
 import { updateLanguageServerIconGoStatusBar } from '../gnoStatus';
-import { createHash } from 'crypto';
 import { GoExtensionContext } from '../context';
 import { GoDocumentSelector } from '../gnoMode';
 
@@ -116,12 +114,6 @@ export class Restart {
 	}
 }
 
-// computes a bigint fingerprint of the machine id.
-function hashMachineID(salt?: string): number {
-	const hash = createHash('md5').update(`${vscode.env.machineId}${salt}`).digest('hex');
-	return parseInt(hash.substring(0, 8), 16);
-}
-
 // scheduleGoplsSuggestions sets timeouts for the various gopls-specific
 // suggestions. We check user's gopls versions once per day to prompt users to
 // update to the latest version. We also check if we should prompt users to
@@ -131,9 +123,6 @@ export function scheduleGoplsSuggestions(goCtx: GoExtensionContext) {
 		return;
 	}
 	// Some helper functions.
-	const usingGo = (): boolean => {
-		return vscode.workspace.textDocuments.some((doc) => doc.languageId === 'gno');
-	};
 	const installGopls = async (cfg: LanguageServerConfig) => {
 		const tool = getTool('gnopls');
 		const versionToUpdate = await shouldUpdateLanguageServer(tool, cfg);
@@ -141,7 +130,7 @@ export function scheduleGoplsSuggestions(goCtx: GoExtensionContext) {
 			return;
 		}
 
-		promptForUpdatingTool(tool.name, versionToUpdate);
+		void promptForUpdatingTool(tool.name, versionToUpdate);
 	};
 	const update = async () => {
 		setTimeout(update, timeDay);
@@ -171,7 +160,7 @@ export async function stopLanguageClient(goCtx: GoExtensionContext) {
 	// crashes during shutdown before responding to the
 	// shutdown request. Enforce client-side timeout.
 	try {
-		c.stop(2000);
+		void c.stop(2000);
 	} catch (e) {
 		c.outputChannel?.appendLine(`Failed to stop client: ${e}`);
 	}
@@ -195,15 +184,15 @@ export function toServerInfo(res?: InitializeResult): ServerInfo | undefined {
 		const v = <serverVersionJSON>(res.serverInfo?.version ? JSON.parse(res.serverInfo.version) : {});
 		info.Version = v.Version || v.version;
 		info.GoVersion = v.GoVersion;
-	} catch (e) {
+	} catch {
 		// gopls is not providing any info, that's ok.
 	}
 	return info;
 }
 
 export interface BuildLanguageClientOption extends LanguageServerConfig {
-	outputChannel?: vscode.OutputChannel;
-	traceOutputChannel?: vscode.OutputChannel;
+	outputChannel?: vscode.LogOutputChannel;
+	traceOutputChannel?: vscode.LogOutputChannel;
 }
 
 // buildLanguageClientOption returns the default, extra configuration
@@ -216,10 +205,10 @@ export function buildLanguageClientOption(
 	// Reuse the same output channel for each instance of the server.
 	if (cfg.enabled) {
 		if (!goCtx.serverOutputChannel) {
-			goCtx.serverOutputChannel = vscode.window.createOutputChannel(cfg.serverName + ' (server)');
+			goCtx.serverOutputChannel = vscode.window.createOutputChannel(cfg.serverName + ' (server)', { log: true });
 		}
 		if (!goCtx.serverTraceChannel) {
-			goCtx.serverTraceChannel = vscode.window.createOutputChannel(cfg.serverName);
+			goCtx.serverTraceChannel = vscode.window.createOutputChannel(cfg.serverName, { log: true });
 		}
 	}
 	return Object.assign(
@@ -292,7 +281,7 @@ export async function buildLanguageClient(
 				},
 				closed: () => {
 					if (initializationError !== undefined) {
-						suggestGoplsIssueReport(
+						void suggestGoplsIssueReport(
 							goCtx,
 							cfg,
 							'The gnopls server failed to initialize.',
@@ -317,7 +306,7 @@ export async function buildLanguageClient(
 							action: CloseAction.Restart
 						};
 					}
-					suggestGoplsIssueReport(
+					void suggestGoplsIssueReport(
 						goCtx,
 						cfg,
 						'The connection to gnopls has been closed. The gnopls server may have crashed.',
@@ -473,19 +462,19 @@ export async function buildLanguageClient(
 				// user if they are actively working.
 				didOpen: async (e, next) => {
 					goCtx.lastUserAction = new Date();
-					next(e);
+					void next(e);
 				},
 				didChange: async (e, next) => {
 					goCtx.lastUserAction = new Date();
-					next(e);
+					void next(e);
 				},
 				didClose: async (e, next) => {
 					goCtx.lastUserAction = new Date();
-					next(e);
+					void next(e);
 				},
 				didSave: async (e, next) => {
 					goCtx.lastUserAction = new Date();
-					next(e);
+					void next(e);
 				},
 				workspace: {
 					configuration: async (
@@ -748,7 +737,7 @@ Please install it and reload this VS Code window.`
 	}
 
 	// Prompt the user to install gopls.
-	promptForMissingTool('gnopls');
+	void promptForMissingTool('gnopls');
 }
 
 function allFoldersHaveSameGopath(): boolean {
@@ -816,53 +805,8 @@ export async function shouldUpdateLanguageServer(
 
 	// If the user's version does not contain a timestamp,
 	// default to a semver comparison of the two versions.
-	const usersVersionSemver = semver.parse(usersVersion.version, {
-		includePrerelease: true,
-		loose: true
-	});
+	const usersVersionSemver = semver.parse(usersVersion.version, { loose: true });
 	return semver.lt(usersVersionSemver!, latestVersion!) ? latestVersion : null;
-}
-
-// Copied from src/cmd/go/internal/modfetch.go.
-const pseudoVersionRE = /^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$/;
-
-// parseTimestampFromPseudoversion returns the timestamp for the given
-// pseudoversion. The timestamp is the center component, and it has the
-// format "YYYYMMDDHHmmss".
-function parseTimestampFromPseudoversion(version: string): moment.Moment | null {
-	const split = version.split('-');
-	if (split.length < 2) {
-		return null;
-	}
-	if (!semver.valid(version)) {
-		return null;
-	}
-	if (!pseudoVersionRE.test(version)) {
-		return null;
-	}
-	const sv = semver.coerce(version);
-	if (!sv) {
-		return null;
-	}
-	// Copied from src/cmd/go/internal/modfetch.go.
-	const build = sv.build.join('.');
-	const buildIndex = version.lastIndexOf(build);
-	if (buildIndex >= 0) {
-		version = version.substring(0, buildIndex);
-	}
-	const lastDashIndex = version.lastIndexOf('-');
-	version = version.substring(0, lastDashIndex);
-	const firstDashIndex = version.lastIndexOf('-');
-	const dotIndex = version.lastIndexOf('.');
-	let timestamp: string;
-	if (dotIndex > firstDashIndex) {
-		// "vX.Y.Z-pre.0" or "vX.Y.(Z+1)-0"
-		timestamp = version.substring(dotIndex + 1);
-	} else {
-		// "vX.0.0"
-		timestamp = version.substring(firstDashIndex + 1);
-	}
-	return moment.utc(timestamp, 'YYYYMMDDHHmmss');
 }
 
 interface GoplsVersionOutput {
@@ -903,7 +847,7 @@ export const getLocalGoplsVersion = async (cfg?: LanguageServerConfig) => {
 			cfg.version = { version: v.Main.Version, goVersion: v.GoVersion };
 			return cfg.version;
 		}
-	} catch (e) {
+	} catch {
 		// do nothing
 	}
 
@@ -912,7 +856,7 @@ export const getLocalGoplsVersion = async (cfg?: LanguageServerConfig) => {
 	try {
 		const { stdout } = await execFile(cfg.path, ['version'], { env, cwd });
 		output = stdout;
-	} catch (e) {
+	} catch {
 		// The "gnopls version" command is not supported, or something else went wrong.
 		// TODO: Should we propagate this error?
 		return;
@@ -998,7 +942,7 @@ export async function suggestGoplsIssueReport(
 	if (tool) {
 		const versionToUpdate = await shouldUpdateLanguageServer(tool, goCtx.latestConfig, true);
 		if (versionToUpdate) {
-			promptForUpdatingTool(tool.name, versionToUpdate, true);
+			void promptForUpdatingTool(tool.name, versionToUpdate, true);
 			return;
 		}
 	}
