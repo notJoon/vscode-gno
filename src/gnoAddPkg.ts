@@ -97,17 +97,17 @@ async function collectUserInputs(rootDir: string, network: GnoNetwork) {
 		`should start with ${GNOLAND_PREFIX}`,
 		false
 	);
-	const deposit = await promptUserInput(
+	const send = await promptUserInput(
 		title,
-		'Enter deposit amount',
-		'10000000ugnot',
-		'amount should be in ugnot',
+		'Enter amount to send to the package, such as 1000000ugnot (optional)',
+		'',
+		undefined,
 		false
 	);
 	const keyname = await promptUserInput(title, 'Enter key name', '', ERROR_MESSAGE, false);
 	const password = await promptUserInput(title, 'Enter password', '', undefined, true);
 
-	return { pkgDir, pkgPath, deposit, keyname, password };
+	return { pkgDir, pkgPath, send, keyname, password };
 }
 
 /**
@@ -149,7 +149,7 @@ async function runGnokeyCommand(
 	inputs: {
 		pkgDir: string;
 		pkgPath: string;
-		deposit: string;
+		send: string;
 		keyname: string;
 		password: string;
 	},
@@ -173,14 +173,15 @@ async function runGnokeyCommand(
 		inputs.pkgPath,
 		'-pkgdir',
 		inputs.pkgDir,
-		'-deposit',
-		inputs.deposit,
 		'-gas-fee',
 		config.gasFee,
 		'-gas-wanted',
 		config.gasWanted
 	];
 
+	if (inputs.send) {
+		args.push('-send', inputs.send);
+	}
 	if (config.broadcast) {
 		args.push('-broadcast');
 	}
