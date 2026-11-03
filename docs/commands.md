@@ -54,6 +54,12 @@ Runs a unit test at the cursor if one is found, otherwise re-runs the last execu
 
 Runs all unit tests in the current file.
 
+### Gno: Test Package
+
+#### `gno.test.package`
+
+Runs all unit tests and filetests in the package of the current file.
+
 ### Gno Test: Refresh
 
 #### `gno.test.refresh`
@@ -131,3 +137,33 @@ Restart the running instance of the language server
 #### `gno.maketx.addpkg`
 
 Add a package to the Gno blockchain
+
+### Gno: Start gnodev
+
+#### `gno.gnodev.start`
+
+Start gnodev in the workspace folder and open gnoweb
+
+### Gno: Stop gnodev
+
+#### `gno.gnodev.stop`
+
+Stop gnodev and close gnoweb
+
+### Gno: Reload gnodev Packages
+
+#### `gno.gnodev.reload`
+
+Reload the packages loaded by gnodev
+
+### Gno: Reset gnodev Realms State
+
+#### `gno.gnodev.reset`
+
+Reload the packages and reset the realms state
+
+### Gno: Open gnoweb in Browser
+
+#### `gno.gnodev.openExternal`
+
+Open the gnoweb served by gnodev in the external browser

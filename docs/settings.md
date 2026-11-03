@@ -63,6 +63,29 @@ Allowed Options: `default`, `gofumpt`
 
 Default: `"default"`
 
+### `gno.gnodev.displayButton`
+
+Show the gnodev start/stop button in the editor title bar of Gno files.
+
+Default: `true`
+
+### `gno.gnodev.flags`
+
+Flags to pass to gnodev (e.g. ["-paths", "gno.land/r/demo/foo"]). `-log-format json` is always added.
+
+### `gno.gnodev.openBrowser`
+
+Controls how gnoweb opens when gnodev starts.<br/>
+Allowed Options:
+
+* `none`: Do not open gnoweb
+* `current`: Open gnoweb in the active editor group
+* `beside`: Open gnoweb beside the active editor group
+* `external`: Open gnoweb in the external browser
+
+
+Default: `"beside"`
+
 ### `gno.gopath`
 
 Specify GOPATH here to override the one that is set as environment variable. The inferred GOPATH from workspace root overrides this, if go.inferGopath is set to true.

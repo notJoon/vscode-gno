@@ -28,6 +28,7 @@ import * as goGenerateTests from './gnoGenerateTests';
 import { GO111MODULE, goModInit } from './gnoModules';
 import { GoRunTestCodeLensProvider } from './gnoRunTestCodelens';
 import { disposeGoStatusBar, expandGoStatusBar, updateGoStatusBar } from './gnoStatus';
+import { openGnodevExternal, reloadGnodev, resetGnodev, startGnodev, stopGnodev } from './gnodev/gnodev';
 import {
 	getFromGlobalState,
 	resetGlobalState,
@@ -136,6 +137,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('gno.add.package.workspace', addImportToWorkspace);
 	registerCommand('gno.tools.install', commands.installTools);
 	registerCommand('gno.maketx.addpkg', addPackage());
+	registerCommand('gno.gnodev.start', startGnodev);
+	registerCommand('gno.gnodev.stop', () => stopGnodev);
+	registerCommand('gno.gnodev.reload', reloadGnodev);
+	registerCommand('gno.gnodev.reset', resetGnodev);
+	registerCommand('gno.gnodev.openExternal', openGnodevExternal);
 
 	if (isVscodeTestingAPIAvailable && cfg.get<boolean>('testExplorer.enable')) {
 		GoTestExplorer.setup(ctx, goCtx);
@@ -176,7 +182,8 @@ export function deactivate() {
 		cancelRunningTests(),
 		killRunningPprof(),
 		Promise.resolve(cleanupTempDir()),
-		Promise.resolve(disposeGoStatusBar())
+		Promise.resolve(disposeGoStatusBar()),
+		Promise.resolve(stopGnodev())
 	]);
 }
 

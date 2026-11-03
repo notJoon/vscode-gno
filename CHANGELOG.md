@@ -1,3 +1,10 @@
+## Unreleased
+
+
+### Features
+
+* start and stop gnodev from the editor, show gnoweb in a webview or the external browser, and reload packages or reset realms state from the webview title bar ([#5](https://github.com/notJoon/vscode-gno/pull/5))
+
 ## 1.0.2 (2026-11-03)
 
 
