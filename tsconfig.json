@@ -12,6 +12,7 @@
 			"mocha"
 		],
 		"strict": true,
+		"skipLibCheck": true,
 		"esModuleInterop": true,
 	},
 	"exclude": [

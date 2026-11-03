@@ -21,8 +21,8 @@ import {
 	StoppedEvent,
 	TerminatedEvent,
 	Thread
-} from 'vscode-debugadapter';
-import { DebugProtocol } from 'vscode-debugprotocol';
+} from '@vscode/debugadapter';
+import { DebugProtocol } from '@vscode/debugprotocol';
 import {
 	commandError,
 	Dirs,
@@ -158,29 +158,29 @@ export class GnoDebugSession extends DebugSession {
 		if (this.stopOnEntry) {
 			this.sendEvent(new StoppedEvent('entry', THREAD_ID));
 		} else {
-			this.resume('continue', 'breakpoint');
+			void this.resume('continue', 'breakpoint');
 		}
 	}
 
 	protected continueRequest(response: DebugProtocol.ContinueResponse): void {
 		response.body = { allThreadsContinued: true };
 		this.sendResponse(response);
-		this.resume('continue', 'breakpoint');
+		void this.resume('continue', 'breakpoint');
 	}
 
 	protected nextRequest(response: DebugProtocol.NextResponse): void {
 		this.sendResponse(response);
-		this.resume('next', 'step');
+		void this.resume('next', 'step');
 	}
 
 	protected stepInRequest(response: DebugProtocol.StepInResponse): void {
 		this.sendResponse(response);
-		this.resume('step', 'step');
+		void this.resume('step', 'step');
 	}
 
 	protected stepOutRequest(response: DebugProtocol.StepOutResponse): void {
 		this.sendResponse(response);
-		this.resume('stepout', 'step');
+		void this.resume('stepout', 'step');
 	}
 
 	protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {

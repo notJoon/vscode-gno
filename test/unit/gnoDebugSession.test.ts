@@ -86,7 +86,7 @@ suite('GnoDebugSession', function () {
 	teardown(async () => {
 		await dc.stop();
 		server.close();
-		fs.rmdirSync(dir, { recursive: true });
+		fs.rmSync(dir, { recursive: true, force: true });
 	});
 
 	test('stops at a breakpoint, shows locals and steps to the end', async () => {
