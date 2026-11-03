@@ -72,6 +72,11 @@ export class GoRunTestCodeLensProvider extends GoBaseCodeLensProvider {
 				command: 'gno.test.cursor'
 			}),
 			new CodeLens(range, {
+				title: 'update golden',
+				command: 'gno.test.cursor',
+				arguments: [{ updateGolden: true }]
+			}),
+			new CodeLens(range, {
 				title: 'run package tests',
 				command: 'gno.test.package'
 			})

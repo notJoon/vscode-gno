@@ -15,7 +15,8 @@ import {
 	goTest,
 	TestConfig,
 	//SuiteToTestMap,
-	getTestFunctions
+	getTestFunctions,
+	testPackageDir
 } from './testUtils';
 
 // lastTestConfig holds a reference to the last executed TestConfig which allows
@@ -128,26 +129,23 @@ async function runTestAtCursor(
 }
 
 /**
- * Returns the package directory of a test file. gno also reads filetests from
- * a `filetests` directory inside the package.
- */
-function testPackageDir(fileName: string): string {
-	const dir = path.dirname(fileName);
-	return fileName.endsWith('_filetest.gno') && path.basename(dir) === 'filetests' ? path.dirname(dir) : dir;
-}
-
-/**
  * Runs the filetest in the active editor. A filetest has no test functions, it
- * runs its main function as a whole.
+ * runs its main function as a whole. With `args.updateGolden`, gno rewrites
+ * the golden directives of the file (Output, Error, ...) with the actual
+ * results. That run is not kept as the previous test, so running the previous
+ * test again does not rewrite the file.
  */
 function runFiletest(editor: vscode.TextEditor, goConfig: vscode.WorkspaceConfiguration, args: any) {
+	const flags = getTestFlags(goConfig, args);
 	const testConfig: TestConfig = {
 		goConfig,
 		dir: testPackageDir(editor.document.fileName),
-		flags: getTestFlags(goConfig, args),
-		filetest: path.basename(editor.document.fileName)
+		flags: args?.updateGolden ? [...flags, '-update-golden-tests'] : flags,
+		filetests: [path.basename(editor.document.fileName)]
 	};
-	lastTestConfig = testConfig;
+	if (!args?.updateGolden) {
+		lastTestConfig = testConfig;
+	}
 	return goTest(testConfig);
 }
 

@@ -28,6 +28,7 @@ import { GoTestProfiler, ProfilingOptions } from './profile';
 import { GoExtensionContext } from '../context';
 import path = require('path');
 import { escapeRegExp } from '../subTestUtils';
+import { GnoTestOutputParser } from './gnoTestOutput';
 
 let debugSessionID = 0;
 
@@ -54,7 +55,10 @@ class TestRunOutput implements OutputChannel {
 	readonly name: string;
 	readonly lines: string[] = [];
 
-	constructor(private run: TestRun) {
+	constructor(
+		private run: TestRun,
+		private onLine?: (line: string) => void
+	) {
 		this.name = `Test run at ${new Date()}`;
 	}
 
@@ -65,6 +69,7 @@ class TestRunOutput implements OutputChannel {
 	appendLine(value: string) {
 		this.lines.push(value);
 		this.run.appendOutput(value + '\r\n');
+		this.onLine?.(value);
 	}
 
 	clear() {}
@@ -84,7 +89,7 @@ export class GoTestRunner {
 		private readonly profiler: GoTestProfiler
 	) {
 		ctrl.createRunProfile(
-			'Go',
+			'Gno',
 			TestRunProfileKind.Run,
 			async (request, token) => {
 				try {
@@ -112,27 +117,6 @@ export class GoTestRunner {
 			},
 			true
 		);
-
-		const pprof = ctrl.createRunProfile(
-			'Gno (Profile)',
-			TestRunProfileKind.Run,
-			async (request, token) => {
-				try {
-					await this.run(request, token, this.profiler.options);
-				} catch (error) {
-					const m = 'Failed to execute tests';
-					outputChannel.error(`${m}: ${error}`);
-					await vscode.window.showErrorMessage(m);
-				}
-			},
-			false
-		);
-
-		pprof.configureHandler = async () => {
-			const state = await this.profiler.configure();
-			if (!state) return;
-			this.profiler.options = state;
-		};
 	}
 
 	async debug(request: TestRunRequest, token?: CancellationToken) {
@@ -422,9 +406,11 @@ export class GoTestRunner {
 			}
 		}
 
-		const { name } = GoTest.parseId(item.id);
+		const { kind, name } = GoTest.parseId(item.id);
 		if (!name) {
-			if (item.children.size === 0) {
+			// Opening a file adds only that file to its package, so a package may
+			// have children and still miss the tests of its other files.
+			if (item.children.size === 0 || kind !== 'file') {
 				await this.resolver.resolve(item);
 			}
 
@@ -467,20 +453,28 @@ export class GoTestRunner {
 		}
 
 		const complete = new Set<TestItem>();
-		const outputChannel = new TestRunOutput(run);
+		// The results are read from the verbose output of gno test.
+		const parser = new GnoTestOutputParser();
+		const consume = (events: ReturnType<GnoTestOutputParser['line']>) =>
+			events.forEach((e) => this.consumeGoTestEvent(run, functions, record, complete, concat, e));
+		const outputChannel = new TestRunOutput(run, (line) => consume(parser.line(line)));
 
+		const names = Object.keys(functions);
+		const isFiletest = (name: string) => GoTest.parseId(functions[name].id).kind === 'filetest';
 		const success = await goTest({
 			...rest,
+			flags: rest.flags.includes('-v') ? rest.flags : ['-v', ...rest.flags],
 			outputChannel,
 			dir: pkg.uri?.fsPath ?? '',
-			functions: Object.keys(functions)?.map((v) => escapeSubTestName(v))
-			//goTestOutputConsumer: rest.isBenchmark
-			//	? (e) => this.consumeGoBenchmarkEvent(run, functions, complete, e)
-			//	: (e) => this.consumeGoTestEvent(run, functions, record, complete, concat, e)
+			functions: names.filter((v) => !isFiletest(v)).map((v) => escapeSubTestName(v)),
+			filetests: names.filter(isFiletest)
 		});
+		consume(parser.done());
 		if (success) {
 			if (rest.isBenchmark) {
 				this.markComplete(functions, complete, (x) => run.passed(x));
+			} else {
+				this.markComplete(functions, complete, (x) => run.skipped(x));
 			}
 			return true;
 		}
@@ -693,6 +687,7 @@ export class GoTestRunner {
 
 		let current: Location | undefined;
 		if (!test.uri) return messages;
+		const allOutput = output;
 		const dir = Uri.joinPath(test.uri, '..').fsPath;
 		// TODO(hyangah): handle panic messages specially.
 
@@ -722,14 +717,26 @@ export class GoTestRunner {
 			}
 		}
 
+		// gno does not prefix test output with a location, so show all of it at
+		// the test.
+		if (messages.length === 0 && allOutput.length > 0) {
+			const message = new TestMessage(allOutput.join(''));
+			if (test.range) {
+				message.location = new Location(test.uri, test.range.start);
+			}
+			messages.push(message);
+		}
+
 		return messages;
 	}
 
 	isBuildFailure(output: string[]): boolean {
-		const rePkg = /^# (?<pkg>[\w/.-]+)(?: \[(?<test>[\w/.-]+).test\])?/;
-
-		// TODO(firelizzard18): Add more sophisticated check for build failures?
-		return output.some((x) => rePkg.test(x));
+		// gno reports a package that failed to load or type check as
+		// `FAIL <dir> [setup failed]` and counts it in `FAIL: <n> build errors`.
+		// The `# <pkg>` header of go test is not used, as a test may print
+		// markdown such as the output of Render.
+		const re = /\[setup failed\]$|^FAIL: [1-9]\d* build errors/;
+		return output.some((x) => re.test(x));
 	}
 }
 

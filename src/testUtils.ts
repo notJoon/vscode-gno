@@ -8,6 +8,7 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------*/
 import cp = require('child_process');
+import path = require('path');
 import util = require('util');
 import vscode = require('vscode');
 
@@ -60,9 +61,9 @@ export interface TestConfig {
 	 */
 	functions?: string[];
 	/**
-	 * Base name of a `*_filetest.gno` file to run instead of test functions.
+	 * Base names of `*_filetest.gno` files to test.
 	 */
-	filetest?: string;
+	filetests?: string[];
 	/**
 	 * Test was not requested explicitly. The output should not appear in the UI.
 	 */
@@ -139,6 +140,15 @@ export async function getTestFunctions(
 }
 
 /**
+ * Returns the package directory of a test file. gno also reads filetests from
+ * a `filetests` directory inside the package.
+ */
+export function testPackageDir(fileName: string): string {
+	const dir = path.dirname(fileName);
+	return fileName.endsWith('_filetest.gno') && path.basename(dir) === 'filetests' ? path.dirname(dir) : dir;
+}
+
+/**
  * go test -json output format.
  * which is a subset of https://golang.org/cmd/test2json/#hdr-Output_Format
  * and includes only the fields that we are using.
@@ -196,7 +206,7 @@ export async function goTest(testconfig: TestConfig): Promise<boolean> {
 		args.push('-timeout', testconfig.goConfig['testTimeout']);
 	}
 
-	const runPattern = gnoTestRunPattern(testconfig.functions, testconfig.filetest);
+	const runPattern = gnoTestRunPattern(testconfig.functions, testconfig.filetests);
 	if (runPattern) {
 		args.push('-run', runPattern);
 	}

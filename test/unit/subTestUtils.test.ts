@@ -7,7 +7,14 @@ suite('gnoTestRunPattern', () => {
 	});
 
 	test('matches a single filetest under the package directory', () => {
-		assert.strictEqual(gnoTestRunPattern([], 'z1_filetest.gno'), '^\\.$/^z1_filetest\\.gno$');
+		assert.strictEqual(gnoTestRunPattern([], ['z1_filetest.gno']), '^\\.$/^(z1_filetest\\.gno)$');
+	});
+
+	test('matches test functions and filetests at once', () => {
+		assert.strictEqual(
+			gnoTestRunPattern(['TestA'], ['z1_filetest.gno', 'z2_filetest.gno']),
+			'^(TestA)$|^\\.$/^(z1_filetest\\.gno|z2_filetest\\.gno)$'
+		);
 	});
 
 	test('runs everything without a selection', () => {
