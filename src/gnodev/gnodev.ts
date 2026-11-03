@@ -82,6 +82,10 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 		if (addr && server === current) {
 			void onGnowebStarted(ctx.extensionUri, current, addr, openBrowser);
 		}
+		// gnoweb is started before the node is ready, so no address here means `-no-web`.
+		if (log.msg === 'node is ready' && !current.addr && server === current) {
+			vscode.window.showInformationMessage('gnodev is ready. gnoweb is disabled.');
+		}
 	});
 	readline.createInterface({ input: proc.stderr }).on('line', (line) => output().error(line));
 
