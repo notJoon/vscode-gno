@@ -1,16 +1,16 @@
 name: GitHub Release
 
+# Run manually once the version in package.json and its CHANGELOG.md
+# section are updated. It tags the current commit with that version and
+# creates a GitHub release with the packaged extension.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
-      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
@@ -21,61 +21,52 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build extension
-        run: npm run compile
-
-      - name: Create .releaserc.json
+      - name: Read version
+        id: version
         run: |
-          cat > .releaserc.json << 'EOF'
-          {
-            "branches": ["main"],
-            "plugins": [
-              "@semantic-release/commit-analyzer",
-              "@semantic-release/release-notes-generator",
-              [
-                "@semantic-release/changelog",
-                {
-                  "changelogFile": "CHANGELOG.md"
-                }
-              ],
-              [
-                "@semantic-release/npm",
-                {
-                  "npmPublish": false
-                }
-              ],
-              [
-                "@semantic-release/exec",
-                {
-                  "prepareCmd": "npx vsce package --pre-release --baseContentUrl https://github.com/gnoverse/vscode-gno/blob/${nextRelease.gitTag} --baseImagesUrl https://github.com/gnoverse/vscode-gno/raw/${nextRelease.gitTag}"
-                }
-              ],
-              [
-                "@semantic-release/github",
-                {
-                  "assets": [
-                    {
-                      "path": "gnolang-*.vsix",
-                      "label": "VS Code Gnolang Extension (${nextRelease.gitTag})"
-                    }
-                  ]
-                }
-              ],
-              [
-                "@semantic-release/git",
-                {
-                  "assets": ["CHANGELOG.md", "package.json"],
-                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-                }
-              ]
-            ]
-          }
-          EOF
+          version=$(node -p 'require("./package.json").version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
-      - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/exec
+      - name: Check that the tag does not exist
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::error::$TAG already exists, bump the version in package.json"
+            exit 1
+          fi
+
+      - name: Extract release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The section of CHANGELOG.md under the "## <version>" heading.
+          awk -v v="$VERSION" '
+            BEGIN { gsub(/\./, "\\.", v); re = "^#+ \\[?" v "\\]?[ (]" }
+            /^#+ [\[0-9]/ { if (found) exit; if ($0 ~ re) { found = 1; next } }
+            found
+          ' CHANGELOG.md | sed '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+
+      - name: Package extension
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          npx vsce package \
+            --pre-release \
+            --baseContentUrl "https://github.com/${{ github.repository }}/blob/$TAG" \
+            --baseImagesUrl "https://github.com/${{ github.repository }}/raw/$TAG"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" gnolang-*.vsix \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --notes-file notes.md
