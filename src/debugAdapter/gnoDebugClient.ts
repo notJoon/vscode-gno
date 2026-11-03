@@ -204,7 +204,7 @@ function resolveFile(p: string, { gnoRoot, programDir }: Dirs): string {
  * @returns The position, or undefined if the output has none.
  */
 export function parseStop(out: string, dirs?: Dirs): GnoStop | undefined {
-	const m = out.match(/^> (\S+?)(?:\(\))? (\S+:\d+:\d+)$/m);
+	const m = out.match(/^> (\S+?)(?:\(\))? (.+:\d+:\d+)$/m);
 	const loc = m && parseLocation(m[2], dirs);
 	return m && loc ? { func: m[1], loc } : undefined;
 }

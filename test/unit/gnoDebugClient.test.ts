@@ -28,6 +28,7 @@ suite('gnoDebugClient parsers', () => {
 			loc: { file: '/tmp/x/main.gno', line: 6, column: 7 }
 		});
 		assert.strictEqual(parseStop('> main main//tmp/x/main.gno:14:2\n')?.func, 'main');
+		assert.strictEqual(parseStop('> main.add() main//tmp/my dir/main.gno:6:7\n')?.loc.file, '/tmp/my dir/main.gno');
 		assert.strictEqual(parseStop('Welcome to the Gnovm debugger.\n'), undefined);
 	});
 

@@ -183,6 +183,17 @@ suite('GnoDebugSession', function () {
 			assert.strictEqual(v.body.result, String(i));
 		}
 		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.waitForEvent('terminated')]);
+
+		// A step onto a breakpoint line does not stop there again on continue.
+		fs.writeFileSync(file, MAIN);
+		await restart();
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 9 });
+		await dc.setBreakpointsRequest({ source: { path: file }, breakpoints: [{ line: 9 }, { line: 10 }] });
+		await Promise.all([
+			dc.nextRequest({ threadId: 1 }),
+			dc.assertStoppedLocation('step', { path: file, line: 10 })
+		]);
+		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.waitForEvent('terminated')]);
 	});
 
 	test('steps into a function and into a stdlib', async () => {
@@ -217,6 +228,17 @@ suite('GnoDebugSession', function () {
 		assert.strictEqual(st.body.stackFrames[0].name, 'strings.ToUpper');
 		const s = await dc.evaluateRequest({ expression: 's', frameId: 0 });
 		assert.strictEqual(s.body.result, '"ab"');
+	});
+
+	test('runs gno in the program directory by default', async function () {
+		if (process.platform === 'win32') {
+			this.skip();
+		}
+		// A fake gno printing its working directory, so that launch fails with it.
+		const fakeGno = path.join(dir, 'fakegno');
+		fs.writeFileSync(fakeGno, '#!/bin/sh\npwd >&2\nexit 1\n', { mode: 0o755 });
+		const err = await dc.launch({ ...launchArgs(), gnoPath: fakeGno }).catch((e: Error) => e);
+		assert.ok(err instanceof Error && err.message.endsWith(`: ${dir}`), String(err));
 	});
 
 	// A program under GNOROOT is known to the VM by relative file names, like

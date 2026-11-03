@@ -96,7 +96,8 @@ export class GnoDebugSession extends DebugSession {
 	protected async launchRequest(response: DebugProtocol.LaunchResponse, args: GnoLaunchArguments): Promise<void> {
 		await this.handle(response, async () => {
 			const gno = args.gnoPath || 'gno';
-			const cwd = args.cwd || path.dirname(path.resolve(args.program));
+			const resolved = path.resolve(args.program);
+			const cwd = args.cwd || ((await dirExists(resolved)) ? resolved : path.dirname(resolved));
 			const env = { ...process.env, ...args.env };
 			this.stopOnEntry = !!args.stopOnEntry;
 			const [root, port] = await Promise.all([gnoRoot(gno, cwd, env), freePort()]);
@@ -308,11 +309,17 @@ export class GnoDebugSession extends DebugSession {
 				stop = await run('step');
 			}
 			// The VM steps by expression, and after entering a function it
-			// reports the line of the call site for a few steps. Step in
+			// reports the line of the call site for a few steps, also with
+			// the file of the callee, so only the line is compared. Step in
 			// repeats until another line, as users expect from F11.
 			const line = this.lastStop?.line;
 			for (let i = 0; cmd === 'step' && stop && stop.loc.line === line && i < 1000; i++) {
 				stop = await run('step');
+			}
+			// Like a breakpoint hit, a step onto a breakpoint line is not
+			// reported again by the next continue.
+			if (cmd !== 'continue' && stop && this.isBreakpoint(stop.loc)) {
+				this.executing.set(`${stop.loc.file}:${stop.loc.line}`, { line: stop.loc.line, func: stop.func });
 			}
 			this.lastStop = stop?.loc;
 			if (!stop && out.trim()) {
