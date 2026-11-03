@@ -3,3 +3,15 @@
 [tools]
 node = "26"
 go = "1.27"
+
+[tasks.build]
+description = "Bundle the extension into dist/"
+run = "npm run compile"
+
+[tasks.dev]
+description = "Build, then open VS Code with this extension loaded. Extra args are passed to code, e.g. a folder to open"
+depends = ["build"]
+run = '''
+code="${VSCODE_BIN:-$(command -v code || echo "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")}"
+"$code" --extensionDevelopmentPath="$MISE_PROJECT_ROOT" "$@"
+'''
