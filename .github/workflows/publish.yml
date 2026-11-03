@@ -31,8 +31,8 @@ jobs:
               run: |
                   npx vsce package \
                     --out gnolang.vsix \
-                    --baseContentUrl 'https://github.com/gnoverse/vscode-gno/blob/${{ github.event.inputs.git_tag }}' \
-                    --baseImagesUrl 'https://github.com/gnoverse/vscode-gno/raw/${{ github.event.inputs.git_tag }}'
+                    --baseContentUrl 'https://github.com/${{ github.repository }}/blob/${{ github.event.inputs.git_tag }}' \
+                    --baseImagesUrl 'https://github.com/${{ github.repository }}/raw/${{ github.event.inputs.git_tag }}'
 
             # TODO: Publish to Open VSX Registry when we have a token
             # - name: Publish to Open VSX Registry

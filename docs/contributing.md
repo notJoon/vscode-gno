@@ -65,3 +65,11 @@ If you make subsequent edits in the codebase, you can reload (`Ctrl+R` or `⌘+R
 So if you add new commands and/or settings to the package.json, remember to run tools/generate.go to update the documentation.
 Similarly, if you add tools to the allTools.ts.in file, this will update src/gnoToolsInformation.ts.
 ```
+
+## Releasing
+
+Releases are made by hand, once enough changes have accumulated on `main`.
+
+1) While changes land, add each of them to the `CHANGELOG.md` section of the next version, and set that version in `package.json` (`npm version <version> --no-git-tag-version`).
+2) Run the **GitHub Release** workflow from the Actions tab. It reads the version from `package.json`, fails if the tag already exists or `CHANGELOG.md` has no section for it, and creates the `v<version>` tag and a GitHub release with the packaged extension and that section as notes.
+3) To publish to the Marketplace, run the **Publish on Marketplace** workflow with the new tag.
