@@ -10,6 +10,7 @@ import { GnodevLog, gnowebAddress, parseGnodevLog } from './logs';
 
 const RUNNING_CONTEXT = 'gno.gnodev.running';
 const VIEW_TYPE = 'gno.gnodev';
+const READY_DELAY_MS = 500;
 
 interface GnodevServer {
 	process: cp.ChildProcess;
@@ -78,13 +79,12 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 			return;
 		}
 		writeLog(log);
-		const addr = gnowebAddress(log);
-		if (addr && server === current) {
-			void onGnowebStarted(ctx.extensionUri, current, addr, openBrowser);
-		}
-		// gnoweb is started before the node is ready, so no address here means `-no-web`.
-		if (log.msg === 'node is ready' && !current.addr && server === current) {
-			vscode.window.showInformationMessage('gnodev is ready. gnoweb is disabled.');
+		current.addr ??= gnowebAddress(log);
+		if (log.msg === 'node is ready') {
+			// gnodev logs "gnoweb started" and "node is ready" before gnoweb listens,
+			// and exits right after when listening fails, such as on a port in use.
+			// Wait a moment so that only the error is shown then.
+			setTimeout(() => server === current && onReady(ctx.extensionUri, current, openBrowser), READY_DELAY_MS);
 		}
 	});
 	readline.createInterface({ input: proc.stderr }).on('line', (line) => output().error(line));
@@ -104,10 +104,14 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 	proc.on('exit', (code, signal) => onEnd(`gnodev exited with code ${code}, signal ${signal}`, code !== 0));
 };
 
-async function onGnowebStarted(extensionUri: vscode.Uri, s: GnodevServer, addr: string, openBrowser: string) {
-	s.addr = addr;
-	s.externalUri = await vscode.env.asExternalUri(vscode.Uri.parse(addr));
-	vscode.window.showInformationMessage(`gnodev started at ${addr}`);
+async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: string) {
+	// gnoweb is started before the node is ready, so no address means `-no-web`.
+	if (!s.addr) {
+		vscode.window.showInformationMessage('gnodev is ready. gnoweb is disabled.');
+		return;
+	}
+	s.externalUri = await vscode.env.asExternalUri(vscode.Uri.parse(s.addr));
+	vscode.window.showInformationMessage(`gnodev started at ${s.addr}`);
 	if (openBrowser === 'external') {
 		vscode.env.openExternal(s.externalUri);
 	} else if (openBrowser !== 'none') {
