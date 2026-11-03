@@ -265,6 +265,36 @@
         "command": "gno.maketx.addpkg",
         "title": "Gno Add Package To Chain",
         "description": "Add a package to the Gno blockchain"
+      },
+      {
+        "command": "gno.gnodev.start",
+        "title": "Gno: Start gnodev",
+        "description": "Start gnodev in the directory of the active file and open gnoweb",
+        "icon": "$(play-circle)"
+      },
+      {
+        "command": "gno.gnodev.stop",
+        "title": "Gno: Stop gnodev",
+        "description": "Stop gnodev and close gnoweb",
+        "icon": "$(stop-circle)"
+      },
+      {
+        "command": "gno.gnodev.reload",
+        "title": "Gno: Reload gnodev Packages",
+        "description": "Reload the packages loaded by gnodev",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gno.gnodev.reset",
+        "title": "Gno: Reset gnodev Realms State",
+        "description": "Reload the packages and reset the realms state",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "gno.gnodev.openExternal",
+        "title": "Gno: Open gnoweb in Browser",
+        "description": "Open the gnoweb served by gnodev in the external browser",
+        "icon": "$(link-external)"
       }
     ],
     "breakpoints": [
@@ -534,6 +564,39 @@
           "type": "boolean",
           "default": true,
           "description": "Open the test output terminal when a test run is started.",
+          "scope": "window"
+        },
+        "gno.gnodev.flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Flags to pass to gnodev (e.g. [\"-paths\", \"gno.land/r/demo/foo\"]). `-log-format json` is always added.",
+          "scope": "resource"
+        },
+        "gno.gnodev.openBrowser": {
+          "type": "string",
+          "enum": [
+            "none",
+            "current",
+            "beside",
+            "external"
+          ],
+          "enumDescriptions": [
+            "Do not open gnoweb",
+            "Open gnoweb in the active editor group",
+            "Open gnoweb beside the active editor group",
+            "Open gnoweb in the external browser"
+          ],
+          "default": "beside",
+          "description": "Controls how gnoweb opens when gnodev starts.",
+          "scope": "resource"
+        },
+        "gno.gnodev.displayButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the gnodev start/stop button in the editor title bar of Gno files.",
           "scope": "window"
         },
         "gno.useLanguageServer": {
@@ -1232,6 +1295,22 @@
         {
           "command": "gno.test.refresh",
           "when": "false"
+        },
+        {
+          "command": "gno.gnodev.stop",
+          "when": "gno.gnodev.running"
+        },
+        {
+          "command": "gno.gnodev.reload",
+          "when": "gno.gnodev.running"
+        },
+        {
+          "command": "gno.gnodev.reset",
+          "when": "gno.gnodev.running"
+        },
+        {
+          "command": "gno.gnodev.openExternal",
+          "when": "gno.gnodev.running"
         }
       ],
       "editor/context": [
@@ -1266,6 +1345,33 @@
           "command": "gno.test.refresh",
           "when": "testId in gno.tests",
           "group": "inline"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gno.gnodev.start",
+          "when": "config.gno.gnodev.displayButton && !gno.gnodev.running && (resourceLangId == gno || resourceFilename == gnomod.toml)",
+          "group": "navigation"
+        },
+        {
+          "command": "gno.gnodev.stop",
+          "when": "config.gno.gnodev.displayButton && gno.gnodev.running && (resourceLangId == gno || resourceFilename == gnomod.toml || activeWebviewPanelId == 'gno.gnodev')",
+          "group": "navigation"
+        },
+        {
+          "command": "gno.gnodev.reload",
+          "when": "activeWebviewPanelId == 'gno.gnodev'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gno.gnodev.reset",
+          "when": "activeWebviewPanelId == 'gno.gnodev'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gno.gnodev.openExternal",
+          "when": "activeWebviewPanelId == 'gno.gnodev'",
+          "group": "navigation@3"
         }
       ]
     },
