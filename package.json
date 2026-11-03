@@ -47,12 +47,14 @@
     "test": "npm run test-compile && npm run bundle && node ./out/test/runTest.js",
     "lint": "gts lint src test",
     "lint-fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json,css,scss,md}'",
-    "unit-test": "npm run test-compile && node ./node_modules/mocha/bin/_mocha -u tdd --timeout 5000 --colors ./out/test/unit",
+    "unit-test": "npm run test-compile && mocha -u tdd --timeout 5000 --colors ./out/test/unit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "license-check": "npx jsgl -l ."
   },
   "extensionDependencies": [],
   "dependencies": {
+    "@vscode/debugadapter": "1.68.0",
+    "@vscode/debugprotocol": "1.68.0",
     "diff": "9.0.0",
     "moment": "2.31.0",
     "semver": "7.8.6",
@@ -66,6 +68,7 @@
     "@types/node": "22.20.5",
     "@types/semver": "7.8.0",
     "@types/vscode": "1.91.0",
+    "@vscode/debugadapter-testsupport": "1.68.0",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "^4.1.0",
     "esbuild": "0.28.2",
@@ -262,6 +265,82 @@
     "breakpoints": [
       {
         "language": "gno"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "gno",
+        "label": "Gno",
+        "languages": [
+          "gno"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Gno file or package directory to run with `gno run`.",
+                "default": "${fileDirname}"
+              },
+              "expr": {
+                "type": "string",
+                "description": "Expression to evaluate, passed to `gno run -expr`. Defaults to `main()`."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory of the gno process. Defaults to the program directory."
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables added to the gno process.",
+                "default": {}
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Pause before running the program.",
+                "default": false
+              },
+              "gnoPath": {
+                "type": "string",
+                "description": "Path of the gno binary. Defaults to the gno binary found by the extension."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "gno",
+            "request": "launch",
+            "name": "Debug Gno package",
+            "program": "${fileDirname}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Gno: Debug package",
+            "description": "Debug the package of the active file with gno run",
+            "body": {
+              "type": "gno",
+              "request": "launch",
+              "name": "Debug Gno package",
+              "program": "^\"\\${fileDirname}\""
+            }
+          },
+          {
+            "label": "Gno: Debug expression",
+            "description": "Debug an expression evaluated in a package, such as a realm Render call",
+            "body": {
+              "type": "gno",
+              "request": "launch",
+              "name": "Debug Gno expression",
+              "program": "^\"\\${fileDirname}\"",
+              "expr": "Render(\"\")"
+            }
+          }
+        ]
       }
     ],
     "configuration": {

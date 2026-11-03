@@ -1,6 +1,11 @@
 ## 1.0.2 (2026-11-03)
 
 
+### Features
+
+* add a debugger for gno packages, driving the gnovm debugger of `gno run` ([#1](https://github.com/notJoon/vscode-gno/pull/1))
+
+
 ### Bug Fixes
 
 * activate the extension when gno is not installed ([#2](https://github.com/notJoon/vscode-gno/pull/2))
