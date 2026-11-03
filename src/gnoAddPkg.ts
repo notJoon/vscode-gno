@@ -3,6 +3,7 @@ import cp = require('child_process');
 import { CommandFactory } from './commands';
 import { getGnoConfig } from './config';
 import { toolExecutionEnvironment } from './gnoEnv';
+import { GnoNetwork, getSelectedNetwork, showUnknownNetworkError } from './gnoNetwork';
 import { getBinPath } from './util';
 import { diagnosticsStatusBarItem, outputChannel } from './gnoStatus';
 
@@ -46,9 +47,14 @@ export function addPackage(): CommandFactory {
  */
 async function executeAddPackage(fileUri: vscode.Uri, goConfig: vscode.WorkspaceConfiguration): Promise<void> {
 	const rootDir = await getWorkspaceRootDir();
+	const network = getSelectedNetwork();
+	if (!network) {
+		await showUnknownNetworkError();
+		return;
+	}
 
 	// Collect user inputs
-	const inputs = await collectUserInputs(rootDir);
+	const inputs = await collectUserInputs(rootDir, network);
 
 	// Get makeTx configuration
 	// TODO: fix this to use a proper type instead of any
@@ -64,7 +70,7 @@ async function executeAddPackage(fileUri: vscode.Uri, goConfig: vscode.Workspace
 	const buildEnv = toolExecutionEnvironment();
 
 	// Execute the gnokey command
-	await runGnokeyCommand(rootDir, inputs, configOptions, buildEnv);
+	await runGnokeyCommand(rootDir, inputs, network, configOptions, buildEnv);
 }
 
 /**
@@ -81,32 +87,41 @@ async function getWorkspaceRootDir(): Promise<string> {
 /**
  * Collects all necessary user inputs through prompts.
  */
-async function collectUserInputs(rootDir: string) {
-	const pkgDir = await promptUserInput('Enter package dir', rootDir, ERROR_MESSAGE, false);
+async function collectUserInputs(rootDir: string, network: GnoNetwork) {
+	const title = `Add package to ${network.name} (${network.remote})`;
+	const pkgDir = await promptUserInput(title, 'Enter package dir', rootDir, ERROR_MESSAGE, false);
 	const pkgPath = await promptUserInput(
+		title,
 		'Enter package name',
 		GNOLAND_PREFIX,
 		`should start with ${GNOLAND_PREFIX}`,
 		false
 	);
-	const deposit = await promptUserInput('Enter deposit amount', '10000000ugnot', 'amount should be in ugnot', false);
-	const remote = await promptUserInput('Enter remote URL', 'localhost:26657', ERROR_MESSAGE, false);
-	const keyname = await promptUserInput('Enter key name', '', ERROR_MESSAGE, false);
-	const password = await promptUserInput('Enter password', '', undefined, true);
+	const deposit = await promptUserInput(
+		title,
+		'Enter deposit amount',
+		'10000000ugnot',
+		'amount should be in ugnot',
+		false
+	);
+	const keyname = await promptUserInput(title, 'Enter key name', '', ERROR_MESSAGE, false);
+	const password = await promptUserInput(title, 'Enter password', '', undefined, true);
 
-	return { pkgDir, pkgPath, deposit, remote, keyname, password };
+	return { pkgDir, pkgPath, deposit, keyname, password };
 }
 
 /**
  * Prompts the user for input with validation.
  */
 async function promptUserInput(
+	title: string,
 	prompt: string,
 	defaultValue: string,
 	validationMessage: string | undefined,
 	isPassword: boolean
 ): Promise<string> {
 	const input = await vscode.window.showInputBox({
+		title,
 		prompt,
 		value: defaultValue,
 		password: isPassword,
@@ -135,10 +150,10 @@ async function runGnokeyCommand(
 		pkgDir: string;
 		pkgPath: string;
 		deposit: string;
-		remote: string;
 		keyname: string;
 		password: string;
 	},
+	network: GnoNetwork,
 	config: {
 		broadcast: boolean;
 		gasFee: string;
@@ -170,7 +185,7 @@ async function runGnokeyCommand(
 		args.push('-broadcast');
 	}
 
-	args.push('-remote', inputs.remote, '-insecure-password-stdin', inputs.keyname);
+	args.push('-remote', network.remote, '-chainid', network.chainId, '-insecure-password-stdin', inputs.keyname);
 
 	outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: executing ${gnokey} ${args.join(' ')}`);
 

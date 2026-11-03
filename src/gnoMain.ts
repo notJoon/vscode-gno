@@ -29,6 +29,7 @@ import { GO111MODULE, goModInit } from './gnoModules';
 import { GoRunTestCodeLensProvider } from './gnoRunTestCodelens';
 import { disposeGoStatusBar, expandGoStatusBar, updateGoStatusBar } from './gnoStatus';
 import { openGnodevExternal, reloadGnodev, resetGnodev, startGnodev, stopGnodev } from './gnodev/gnodev';
+import { selectNetwork, setupNetworkStatusBar } from './gnoNetwork';
 import {
 	getFromGlobalState,
 	resetGlobalState,
@@ -137,6 +138,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('gno.add.package.workspace', addImportToWorkspace);
 	registerCommand('gno.tools.install', commands.installTools);
 	registerCommand('gno.maketx.addpkg', addPackage());
+	registerCommand('gno.network.select', selectNetwork);
+	setupNetworkStatusBar(ctx);
 	registerCommand('gno.gnodev.start', startGnodev);
 	registerCommand('gno.gnodev.stop', () => stopGnodev);
 	registerCommand('gno.gnodev.reload', reloadGnodev);

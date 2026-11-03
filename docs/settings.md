@@ -137,6 +137,21 @@ Default:
 map[broadcast:true gasFee:1000000ugnot gasWanted:4000000]
 ```
 
+### `gno.network`
+
+Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. When empty, the first network is used.
+
+Default: `""`
+
+### `gno.networks`
+
+Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev. Select one with `#gno.network#` or the **Gno: Select Network** command.
+
+Default:
+```
+map[local:map[chainId:dev remote:127.0.0.1:26657]]
+```
+
 ### `gno.showWelcome`
 
 Specifies whether to show the Welcome experience on first install
