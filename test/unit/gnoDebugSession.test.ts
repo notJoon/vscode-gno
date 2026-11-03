@@ -117,12 +117,41 @@ suite('GnoDebugSession', function () {
 		assert.ok(c instanceof Error, 'unsupported expressions are reported as errors');
 
 		await Promise.all([dc.nextRequest({ threadId: 1 }), dc.assertStoppedLocation('step', { path: file, line: 5 })]);
+		// Step out lands on the call site in main, not on the return statement of add.
+		await Promise.all([
+			dc.stepOutRequest({ threadId: 1 }),
+			dc.assertStoppedLocation('step', { path: file, line: 10 })
+		]);
+		const out = await dc.stackTraceRequest({ threadId: 1 });
+		assert.strictEqual(out.body.stackFrames[0].name, 'main.main');
 
 		await Promise.all([
 			dc.continueRequest({ threadId: 1 }),
 			dc.assertOutput('stdout', 'result 3'),
 			dc.waitForEvent('terminated')
 		]);
+	});
+
+	test('steps into a function and into a stdlib', async () => {
+		const file = path.join(dir, 'main.gno');
+		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 10 });
+		await Promise.all([
+			dc.stepInRequest({ threadId: 1 }),
+			dc.assertStoppedLocation('step', { path: file, line: 4 })
+		]);
+
+		fs.writeFileSync(file, UPPER);
+		await dc.stop();
+		dc = new DebugClient('node', '', 'gno');
+		await dc.start((server.address() as net.AddressInfo).port);
+		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 6 });
+		const [, stopped] = await Promise.all([dc.stepInRequest({ threadId: 1 }), dc.waitForEvent('stopped')]);
+		assert.strictEqual(stopped.body.reason, 'step');
+		const st = await dc.stackTraceRequest({ threadId: 1 });
+		const top = st.body.stackFrames[0];
+		assert.strictEqual(top.name, 'strings.ToUpper');
+		assert.strictEqual(top.source?.path, stdFile);
+		assert.ok(top.line > lineOf(fs.readFileSync(stdFile, 'utf8'), /^func ToUpper\(/), `line ${top.line}`);
 	});
 
 	test('stops at a breakpoint in a stdlib', async () => {

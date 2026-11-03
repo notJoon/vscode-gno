@@ -57,6 +57,7 @@ export class GnoDebugSession extends DebugSession {
 	private terminated = false;
 	private frameLevel = 0;
 	private frames: GnoFrame[] = [];
+	private lastStop?: GnoLocation;
 	private breakpoints = new Map<string, number[]>();
 
 	constructor() {
@@ -107,18 +108,22 @@ export class GnoDebugSession extends DebugSession {
 			const proc = spawn(gno, runArgs, { cwd: runCwd, env });
 			this.proc = proc;
 			proc.stdout?.on('data', (d) => this.output(d.toString(), 'stdout'));
-			proc.stderr?.on('data', (d) =>
-				this.output(
-					d.toString().replace(/Waiting for debugger client to connect at \S+|^ connected!\n/g, ''),
-					'stderr'
-				)
-			);
+			let stderr = '';
+			proc.stderr?.on('data', (d) => {
+				const text = d.toString().replace(/Waiting for debugger client to connect at \S+|^ connected!\n/g, '');
+				stderr = (stderr + text).slice(-4096);
+				this.output(text, 'stderr');
+			});
 			const exited = new Promise<never>((_, reject) => {
 				proc.on('error', reject);
-				proc.on('exit', (code) => {
+				// close, unlike exit, comes after the last stderr output.
+				proc.on('close', (code) => {
 					this.sendEvent(new Event('exited', { exitCode: code ?? 0 }));
 					this.terminate();
-					reject(new Error(`gno exited with code ${code}`));
+					// The error is shown in a dialog before the debug console, so it
+					// includes the last stderr line, e.g. a compile error.
+					const last = stderr.trim().split('\n').pop();
+					reject(new Error(`gno exited with code ${code}` + (last ? `: ${last}` : '')));
 				});
 			});
 			exited.catch(() => undefined);
@@ -255,13 +260,28 @@ export class GnoDebugSession extends DebugSession {
 		this.frameLevel = 0;
 		try {
 			for (;;) {
-				const out = await this.client.send(cmd);
-				const stop = parseStop(out, this.dirs);
+				let out = await this.client.send(cmd);
+				let stop = parseStop(out, this.dirs);
 				// The VM matches breakpoints by file name and line only, so it
 				// also stops in files of other packages with the same name.
 				if (cmd === 'continue' && stop && !this.isBreakpoint(stop.loc)) {
 					continue;
 				}
+				// After stepout the VM still reports the return statement of the
+				// callee, and one step moves to the call site in the caller.
+				if (cmd === 'stepout' && stop && stop.loc.raw === this.lastStop?.raw) {
+					out = await this.client.send('step');
+					stop = parseStop(out, this.dirs);
+				}
+				// The VM steps by expression, and after entering a function it
+				// reports the line of the call site for a few steps. Step in
+				// repeats until another line, as users expect from F11.
+				const line = this.lastStop?.line;
+				for (let i = 0; cmd === 'step' && stop && stop.loc.line === line && i < 1000; i++) {
+					out = await this.client.send('step');
+					stop = parseStop(out, this.dirs);
+				}
+				this.lastStop = stop?.loc;
 				if (!stop && out.trim()) {
 					this.output(out + '\n', 'console');
 				}
