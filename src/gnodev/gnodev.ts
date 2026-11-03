@@ -72,6 +72,8 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 	server = current;
 	vscode.commands.executeCommand('setContext', RUNNING_CONTEXT, true);
 
+	/** The last error gnodev printed, shown when it exits with an error. */
+	let lastError: string | undefined;
 	readline.createInterface({ input: proc.stdout }).on('line', (line) => {
 		const log = parseGnodevLog(line);
 		if (!log) {
@@ -79,6 +81,9 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 			return;
 		}
 		writeLog(log);
+		if (log.level === 'error') {
+			lastError = log.msg;
+		}
 		current.addr ??= gnowebAddress(log);
 		if (log.msg === 'node is ready') {
 			// gnodev logs "gnoweb started" and "node is ready" before gnoweb listens,
@@ -87,10 +92,21 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 			setTimeout(() => server === current && onReady(ctx.extensionUri, current, openBrowser), READY_DELAY_MS);
 		}
 	});
-	readline.createInterface({ input: proc.stderr }).on('line', (line) => output().error(line));
+	readline.createInterface({ input: proc.stderr }).on('line', (line) => {
+		output().error(line);
+		if (line.trim()) {
+			lastError = line.trim();
+		}
+	});
 
 	/** Clears the state unless the user already stopped this instance. */
+	let ended = false;
 	const onEnd = (message: string, failed: boolean) => {
+		// A process that fails to spawn emits both 'error' and 'close'.
+		if (ended) {
+			return;
+		}
+		ended = true;
 		output().info(message);
 		if (server !== current) {
 			return;
@@ -101,7 +117,11 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 		}
 	};
 	proc.on('error', (err) => onEnd(`failed to start gnodev: ${err.message}`, true));
-	proc.on('exit', (code, signal) => onEnd(`gnodev exited with code ${code}, signal ${signal}`, code !== 0));
+	// 'close' comes after the output is read, unlike 'exit', so lastError is set.
+	proc.on('close', (code, signal) => {
+		const status = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
+		onEnd(`gnodev ${status}${code && lastError ? `: ${lastError}` : ''}`, code !== 0);
+	});
 };
 
 async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: string) {
