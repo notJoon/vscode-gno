@@ -4,12 +4,12 @@
 ### Features
 
 * start and stop gnodev from the editor, show gnoweb in a webview or the external browser, and reload packages or reset realms state from the webview title bar ([#5](https://github.com/notJoon/vscode-gno/pull/5))
-* select the network that transactions are sent to from `gno.networks`, with a remote and a chain ID, through **Gno: Select Network** or the status bar. Gno Add Package To Chain uses it instead of asking for the remote, and now passes the chain ID ([#9](https://github.com/notJoon/vscode-gno/issues/9))
+* select the network that transactions are sent to from `gno.networks`, with a remote and a chain ID, through **Gno: Select Network** or the status bar. Gno Add Package To Chain uses it instead of asking for the remote, and now passes the chain ID ([#12](https://github.com/notJoon/vscode-gno/pull/12))
 
 
 ### Bug Fixes
 
-* Gno Add Package To Chain failed with current gnokey, which has no `-deposit` flag. Coins sent with the package are now set with `-send`, and are optional
+* Gno Add Package To Chain failed with current gnokey, which has no `-deposit` flag. Coins sent with the package are now set with `-send`, and are optional ([#12](https://github.com/notJoon/vscode-gno/pull/12))
 
 ## 1.0.2 (2026-11-03)
 
