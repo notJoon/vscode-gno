@@ -264,6 +264,82 @@
         "language": "gno"
       }
     ],
+    "debuggers": [
+      {
+        "type": "gno",
+        "label": "Gno",
+        "languages": [
+          "gno"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Gno file or package directory to run with `gno run`.",
+                "default": "${fileDirname}"
+              },
+              "expr": {
+                "type": "string",
+                "description": "Expression to evaluate, passed to `gno run -expr`. Defaults to `main()`."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory of the gno process. Defaults to the program directory."
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables added to the gno process.",
+                "default": {}
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Pause before running the program.",
+                "default": false
+              },
+              "gnoPath": {
+                "type": "string",
+                "description": "Path of the gno binary. Defaults to the gno binary found by the extension."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "gno",
+            "request": "launch",
+            "name": "Debug Gno package",
+            "program": "${fileDirname}"
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Gno: Debug package",
+            "description": "Debug the package of the active file with gno run",
+            "body": {
+              "type": "gno",
+              "request": "launch",
+              "name": "Debug Gno package",
+              "program": "^\"\\${fileDirname}\""
+            }
+          },
+          {
+            "label": "Gno: Debug expression",
+            "description": "Debug an expression evaluated in a package, such as a realm Render call",
+            "body": {
+              "type": "gno",
+              "request": "launch",
+              "name": "Debug Gno expression",
+              "program": "^\"\\${fileDirname}\"",
+              "expr": "Render(\"\")"
+            }
+          }
+        ]
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Gno",

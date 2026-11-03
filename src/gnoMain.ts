@@ -51,6 +51,7 @@ import { GoExtensionContext } from './context';
 import * as commands from './commands';
 import { GoTaskProvider } from './gnoTaskProvider';
 import { addPackage } from './gnoAddPkg';
+import { registerGnoDebugger } from './gnoDebug';
 
 const goCtx: GoExtensionContext = {};
 
@@ -142,6 +143,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	GoExplorerProvider.setup(ctx);
 
 	registerCommand('gno.debug.startSession', commands.startDebugSession);
+	registerGnoDebugger(ctx);
 	registerCommand('gno.show.commands', commands.showCommands);
 	registerCommand('gno.lint.workspace', lintCode('workspace'));
 	registerCommand('gno.lint.file', lintCode('file'));

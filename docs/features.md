@@ -14,6 +14,7 @@ This document describes the features supported by this extension.
     * [Test Function](#test-function)
     * [Test At Cursor](#test-at-cursor)
     * [Test All Packages In Workspace](#test-all-packages-in-workspace)
+- [Debugging](#debugging)
 - [Mod Init](#mod-init)
 - [Maketx](#maketx)
 - [Find References](#find-references)
@@ -78,6 +79,31 @@ Test a specific function
 #### Test At Cursor 
 
 Executes the test case where the cursor is currently placed in the code editor.
+
+## Debugging
+
+Debug a Gno package with breakpoints, stepping, the call stack, local variables, and expression evaluation (watch, hover, debug console). The extension drives the interactive debugger of `gno run -debug-addr`.
+
+Press `F5` in a `.gno` file to debug its package, or add a `gno` configuration to `launch.json`:
+
+```json
+{
+  "type": "gno",
+  "request": "launch",
+  "name": "Debug Gno package",
+  "program": "${fileDirname}",
+  "expr": "Render(\"\")"
+}
+```
+
+`program` is a file or package directory passed to `gno run`. `expr` is optional and defaults to `main()`.
+
+Limitations of the underlying debugger:
+- Breakpoints work in the debugged program and in imported packages of GNOROOT (stdlibs and examples). Other imported packages are not supported.
+- The debugger never stops at some statements, such as assignments of constants. Put the breakpoint on a nearby line.
+- Breakpoints changed while the program runs take effect at the next stop. There is no pause.
+- Expressions are limited to identifiers, selectors, indexes and literals (no calls or operators).
+- Locals are found from the source of the current function and values cannot be expanded.
 
 ## Maketx - Add Package
 
