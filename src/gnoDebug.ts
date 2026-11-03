@@ -36,9 +36,12 @@ export function registerGnoDebugger(ctx: vscode.ExtensionContext) {
 	);
 }
 
-// activeGnoFile returns the .gno file of the active editor tab. When a panel
-// such as the output has the focus, vscode.window.activeTextEditor and
-// ${file} refer to the panel, while the active tab is still the file.
+/**
+ * Returns the .gno file of the active editor tab.
+ *
+ * When a panel such as the output has the focus, vscode.window.activeTextEditor
+ * and ${file} refer to the panel, while the active tab is still the file.
+ */
 function activeGnoFile(): string | undefined {
 	const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
 	const uri = input instanceof vscode.TabInputText ? input.uri : vscode.window.activeTextEditor?.document.uri;

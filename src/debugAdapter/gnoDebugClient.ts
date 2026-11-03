@@ -3,10 +3,16 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------*/
 
-// Client for the interactive gnovm debugger started with `gno run -debug-addr`.
-// The debugger has no machine-readable protocol: it reads one command per line
-// and answers with plain text terminated by the "dbg> " prompt. Everything in
-// this file depends on that text format (gnovm/pkg/gnolang/debugger.go).
+/**
+ * Client for the interactive gnovm debugger started with `gno run -debug-addr`.
+ *
+ * The debugger has no protocol meant for programs. It reads one command per
+ * line and answers with plain text ending with the "dbg> " prompt. Everything
+ * in this file depends on that text format, defined in
+ * gnovm/pkg/gnolang/debugger.go.
+ *
+ * @packageDocumentation
+ */
 
 import * as fs from 'fs';
 import * as net from 'net';
@@ -14,30 +20,38 @@ import * as path from 'path';
 
 const PROMPT = 'dbg> ';
 
+/** A source location reported by the debugger. */
 export interface GnoLocation {
-	// Raw location as printed by the debugger, "<pkgpath>/<file>:<line>:<col>".
+	/** Location as printed by the debugger, "<pkgpath>/<file>:<line>:<col>". */
 	raw: string;
+	/** Absolute path of the source file, or the printed path if it was not found. */
 	file: string;
 	line: number;
 	column: number;
 }
 
+/** The position where the program stopped. */
 export interface GnoStop {
+	/** Function name, such as "main.add", or the package name outside of functions. */
 	func: string;
 	loc: GnoLocation;
 }
 
+/** A frame of the call stack, the innermost one having index 0. */
 export interface GnoFrame {
 	index: number;
 	func: string;
 	loc: GnoLocation;
 }
 
+/** A value printed by the debugger. */
 export interface GnoValue {
 	value: string;
+	/** Type name, empty when the debugger printed none. */
 	type: string;
 }
 
+/** Connection to one debugger, which runs one command at a time. */
 export class GnoDebugClient {
 	private socket?: net.Socket;
 	private buf = '';
@@ -45,9 +59,16 @@ export class GnoDebugClient {
 	private queue: Promise<unknown> = Promise.resolve();
 	private closed = false;
 
+	/** Called once the debugger closes the connection, e.g. when the program ends. */
 	onClose?: () => void;
 
-	// connect retries until the debugger accepts the connection, then waits for its first prompt.
+	/**
+	 * Connects to the debugger, retrying until it listens, and waits for its first prompt.
+	 *
+	 * @param port - Port given to `gno run -debug-addr` on 127.0.0.1.
+	 * @param timeoutMs - How long to retry before giving up.
+	 * @returns The output printed before the first prompt.
+	 */
 	async connect(port: number, timeoutMs = 10000): Promise<string> {
 		const deadline = Date.now() + timeoutMs;
 		for (;;) {
@@ -71,13 +92,20 @@ export class GnoDebugClient {
 		return this.await();
 	}
 
+	/** Whether the debugger closed the connection. */
 	get isClosed(): boolean {
 		return this.closed;
 	}
 
-	// send runs one debugger command and resolves with its output, once the
-	// debugger prompts again. Commands are serialized: a command sent while the
-	// program runs (after continue/next/step) waits until the program stops.
+	/**
+	 * Runs one debugger command.
+	 *
+	 * Commands run one after the other. A command sent while the program runs,
+	 * after continue, next or step, waits until the program stops.
+	 *
+	 * @param cmd - Command line, without its newline. Newlines in it become spaces.
+	 * @returns The output of the command, once the debugger prompts again.
+	 */
 	send(cmd: string): Promise<string> {
 		const run = () => {
 			if (this.closed || !this.socket) {
@@ -92,6 +120,7 @@ export class GnoDebugClient {
 		return p;
 	}
 
+	/** Closes the connection. */
 	close(): void {
 		this.socket?.destroy();
 	}
@@ -119,16 +148,24 @@ export class GnoDebugClient {
 	}
 }
 
-// Dirs are the directories where relative source files are looked up.
+/** Directories where relative source files are looked up. */
 export interface Dirs {
 	gnoRoot?: string;
-	// Directory of the debugged program, whose files are relative when it lives under GNOROOT.
+	/** Directory of the debugged program, whose files are relative when it lives under GNOROOT. */
 	programDir?: string;
 }
 
-// parseLocation parses "<pkgpath>/<file>:<line>:<col>". Files of the debugged
-// program are usually absolute, so the pkgpath prefix is dropped. Files of
-// imported packages are relative to their pkgpath and are looked up in GNOROOT.
+/**
+ * Parses a location printed by the debugger.
+ *
+ * Files of the debugged program are usually absolute, so the pkgpath prefix is
+ * dropped. Files of imported packages are relative to their pkgpath and are
+ * looked up in GNOROOT.
+ *
+ * @param raw - Location in the form "<pkgpath>/<file>:<line>:<col>".
+ * @param dirs - Directories where relative files are looked up.
+ * @returns The location, or undefined if raw is not a location.
+ */
 export function parseLocation(raw: string, dirs: Dirs = {}): GnoLocation | undefined {
 	const m = raw.trim().match(/^(.*):(\d+):(\d+)$/);
 	if (!m) {
@@ -161,15 +198,26 @@ function resolveFile(p: string, { gnoRoot, programDir }: Dirs): string {
 	return p;
 }
 
-// parseStop extracts the current position from the output of continue, next,
-// step and stepout, e.g. "> main.add() main//tmp/x/main.gno:6:7".
+/**
+ * Extracts the current position from the output of continue, next, step and stepout.
+ *
+ * @param out - Command output, such as "> main.add() main//tmp/x/main.gno:6:7".
+ * @param dirs - Directories where relative files are looked up.
+ * @returns The position, or undefined if the output has none.
+ */
 export function parseStop(out: string, dirs?: Dirs): GnoStop | undefined {
 	const m = out.match(/^> (\S+?)(?:\(\))? (\S+:\d+:\d+)$/m);
 	const loc = m && parseLocation(m[2], dirs);
 	return m && loc ? { func: m[1], loc } : undefined;
 }
 
-// parseStack parses the output of the "stack" command.
+/**
+ * Parses the output of the "stack" command.
+ *
+ * @param out - Command output.
+ * @param dirs - Directories where relative files are looked up.
+ * @returns The frames, the innermost first.
+ */
 export function parseStack(out: string, dirs?: Dirs): GnoFrame[] {
 	const frames: GnoFrame[] = [];
 	const re = /^(\d+)\tin (.+)\n\tat (.+)$/gm;
@@ -182,8 +230,12 @@ export function parseStack(out: string, dirs?: Dirs): GnoFrame[] {
 	return frames;
 }
 
-// parseValue parses the output of "print", e.g. "(1 int)" or
-// "(struct{(2 int)} main.T)". It returns undefined when the command failed.
+/**
+ * Parses the output of the "print" command.
+ *
+ * @param out - Command output, such as "(1 int)" or "(struct{(2 int)} main.T)".
+ * @returns The value, or undefined when the command failed.
+ */
 export function parseValue(out: string): GnoValue | undefined {
 	const s = out.trim();
 	if (!s || s.startsWith('Command failed:')) {
@@ -192,21 +244,34 @@ export function parseValue(out: string): GnoValue | undefined {
 	if (s === '(undefined)') {
 		return { value: 'undefined', type: '' };
 	}
-	// ponytail: splits on the last space, so a type containing spaces (func types) is split wrong.
+	// The type is after the last space, so a type containing spaces, such as a
+	// func type, is split wrong.
 	const m = s.match(/^\((.*) (\S+)\)$/s);
 	return m ? { value: m[1], type: m[2] } : { value: s, type: '' };
 }
 
-// commandError returns the message of a failed command, if any.
+/**
+ * Returns the error message of a failed command.
+ *
+ * @param out - Command output.
+ * @returns The message, or undefined if the command succeeded.
+ */
 export function commandError(out: string): string | undefined {
 	const m = out.match(/^Command failed: (.*)$/m);
 	return m?.[1];
 }
 
-// localNames guesses the variables visible at line (1-based) in src: the
-// parameters and receiver of the enclosing function and the names declared
-// before line in its body. The debugger has no command to list locals.
-// ponytail: line based heuristic, ignores block scoping; a go/ast based lister in gno would be exact.
+/**
+ * Guesses the variables visible at a line, since the debugger has no command to list locals.
+ *
+ * The names are the receiver and parameters of the enclosing function and the
+ * names declared before the line in its body. The guess reads lines of text and
+ * ignores block scopes. A lister using go/ast in gno would be exact.
+ *
+ * @param src - Source of the file.
+ * @param line - Line number, counted from 1.
+ * @returns The names, in order of declaration.
+ */
 export function localNames(src: string, line: number): string[] {
 	const lines = src.split('\n');
 	let start = -1;
