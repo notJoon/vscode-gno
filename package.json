@@ -269,7 +269,7 @@
       {
         "command": "gno.gnodev.start",
         "title": "Gno: Start gnodev",
-        "description": "Start gnodev in the workspace folder and open gnoweb",
+        "description": "Start gnodev in the directory of the active file and open gnoweb",
         "icon": "$(play-circle)"
       },
       {

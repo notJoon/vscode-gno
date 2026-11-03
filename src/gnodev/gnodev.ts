@@ -1,5 +1,6 @@
 import vscode = require('vscode');
 import cp = require('child_process');
+import path = require('path');
 import readline = require('readline');
 import { CommandFactory } from '../commands';
 import { getGnoConfig } from '../config';
@@ -42,16 +43,21 @@ function writeLog(log: GnodevLog) {
 }
 
 /**
- * Starts gnodev in the workspace folder of the active editor, replacing a
- * running instance, and opens gnoweb as configured by `gno.gnodev.openBrowser`.
+ * Starts gnodev in the directory of the active file, replacing a running
+ * instance, and opens gnoweb as configured by `gno.gnodev.openBrowser`.
+ * gnodev looks for a gnomod.toml or gnowork.toml from its working directory
+ * upward, so this loads the package or workspace of the file as running gnodev
+ * there in a terminal would. Without a file, it runs in the workspace folder.
  */
 export const startGnodev: CommandFactory = (ctx) => async () => {
 	stopGnodev();
 
-	const uri = vscode.window.activeTextEditor?.document.uri;
-	const cwd = getWorkspaceFolderPath(uri);
+	const editor =
+		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
+	const uri = editor?.document.uri;
+	const cwd = uri?.scheme === 'file' ? path.dirname(uri.fsPath) : getWorkspaceFolderPath(uri);
 	if (!cwd) {
-		vscode.window.showErrorMessage('Open a workspace folder to start gnodev.');
+		vscode.window.showErrorMessage('Open a Gno file or a workspace folder to start gnodev.');
 		return;
 	}
 	const cfg = getGnoConfig(uri);

@@ -142,7 +142,7 @@ Add a package to the Gno blockchain
 
 #### `gno.gnodev.start`
 
-Start gnodev in the workspace folder and open gnoweb
+Start gnodev in the directory of the active file and open gnoweb
 
 ### Gno: Stop gnodev
 
