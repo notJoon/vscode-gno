@@ -132,6 +132,49 @@ suite('GnoDebugSession', function () {
 		]);
 	});
 
+	// The VM stops several times on a breakpoint line during one execution of it.
+	test('stops once per execution of a breakpoint line', async () => {
+		const file = path.join(dir, 'main.gno');
+		const launch = { type: 'gno', request: 'launch', program: dir };
+
+		// An expression statement, then the end of the program.
+		await dc.hitBreakpoint(launch, { path: file, line: 4 });
+		await Promise.all([
+			dc.continueRequest({ threadId: 1 }),
+			dc.assertOutput('stdout', 'result 3'),
+			dc.waitForEvent('terminated')
+		]);
+
+		// A call line and a breakpoint in the callee: the call line does not
+		// stop again when the callee returns.
+		await dc.stop();
+		dc = new DebugClient('node', '', 'gno');
+		await dc.start((server.address() as net.AddressInfo).port);
+		await dc.hitBreakpoint(launch, { path: file, line: 10 });
+		await dc.setBreakpointsRequest({ source: { path: file }, breakpoints: [{ line: 10 }, { line: 4 }] });
+		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.assertStoppedLocation('breakpoint', { line: 4 })]);
+		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.waitForEvent('terminated')]);
+
+		// A loop body stops once per iteration.
+		fs.writeFileSync(
+			file,
+			'package main\n\nfunc main() {\n\ts := 0\n\tfor i := 0; i < 3; i++ {\n\t\ts += i\n\t}\n\tprintln(s)\n}\n'
+		);
+		await dc.stop();
+		dc = new DebugClient('node', '', 'gno');
+		await dc.start((server.address() as net.AddressInfo).port);
+		await dc.hitBreakpoint(launch, { path: file, line: 6 });
+		for (let i = 1; i < 3; i++) {
+			await Promise.all([
+				dc.continueRequest({ threadId: 1 }),
+				dc.assertStoppedLocation('breakpoint', { line: 6 })
+			]);
+			const v = await dc.evaluateRequest({ expression: 'i', frameId: 0 });
+			assert.strictEqual(v.body.result, String(i));
+		}
+		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.waitForEvent('terminated')]);
+	});
+
 	test('steps into a function and into a stdlib', async () => {
 		const file = path.join(dir, 'main.gno');
 		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 10 });

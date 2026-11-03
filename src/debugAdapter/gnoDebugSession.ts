@@ -3,8 +3,13 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------*/
 
-// Debug adapter translating DAP requests into commands of the gnovm debugger.
-// It does not import vscode so that it can run outside of the extension host.
+/**
+ * Debug adapter translating DAP requests into commands of the gnovm debugger.
+ *
+ * It does not import vscode, so that it can run outside of the extension host.
+ *
+ * @packageDocumentation
+ */
 
 import { ChildProcess, execFile, spawn } from 'child_process';
 import * as fs from 'fs';
@@ -29,26 +34,32 @@ import {
 	GnoDebugClient,
 	GnoFrame,
 	GnoLocation,
+	GnoStop,
 	localNames,
 	parseStack,
 	parseStop,
 	parseValue
 } from './gnoDebugClient';
 
+/** Arguments of a launch request, from the "gno" debug configuration. */
 export interface GnoLaunchArguments extends DebugProtocol.LaunchRequestArguments {
-	// File or package directory passed to `gno run`.
+	/** File or package directory passed to `gno run`. */
 	program: string;
-	// Expression passed to `gno run -expr`, "main()" by default.
+	/** Expression passed to `gno run -expr`, "main()" by default. */
 	expr?: string;
+	/** Working directory of gno, the program directory by default. */
 	cwd?: string;
+	/** Environment variables added to the environment of gno. */
 	env?: { [key: string]: string };
+	/** Whether to pause before the program runs. */
 	stopOnEntry?: boolean;
-	// Path of the gno binary, "gno" by default.
+	/** Path of the gno binary, "gno" by default. */
 	gnoPath?: string;
 }
 
 const THREAD_ID = 1;
 
+/** Debug session of one `gno run`, the program running in a single thread. */
 export class GnoDebugSession extends DebugSession {
 	private client = new GnoDebugClient();
 	private proc?: ChildProcess;
@@ -59,6 +70,10 @@ export class GnoDebugSession extends DebugSession {
 	private frames: GnoFrame[] = [];
 	private lastStop?: GnoLocation;
 	private breakpoints = new Map<string, number[]>();
+	/** Breakpoint lines whose execution is in progress, as "file:line", with the function which stopped there. */
+	private executing = new Map<string, string>();
+	/** Lines of the source files read by {@link GnoDebugSession.statementColumn}. */
+	private sources = new Map<string, string[]>();
 
 	constructor() {
 		super();
@@ -255,7 +270,12 @@ export class GnoDebugSession extends DebugSession {
 		this.sendResponse(response);
 	}
 
-	// resume runs a command which lets the program run, and reports the next stop.
+	/**
+	 * Runs a command which lets the program run, and reports the next stop.
+	 *
+	 * @param cmd - One of continue, next, step and stepout.
+	 * @param reason - Reason of the stopped event sent at the next stop.
+	 */
 	private async resume(cmd: string, reason: string) {
 		this.frameLevel = 0;
 		try {
@@ -264,8 +284,13 @@ export class GnoDebugSession extends DebugSession {
 				let stop = parseStop(out, this.dirs);
 				// The VM matches breakpoints by file name and line only, so it
 				// also stops in files of other packages with the same name.
-				if (cmd === 'continue' && stop && !this.isBreakpoint(stop.loc)) {
+				if (cmd === 'continue' && stop && (!this.isBreakpoint(stop.loc) || this.isSameExecution(stop))) {
 					continue;
+				}
+				if (cmd !== 'continue') {
+					this.executing.clear();
+				} else if (stop) {
+					this.executing.set(`${stop.loc.file}:${stop.loc.line}`, stop.func);
 				}
 				// After stepout the VM still reports the return statement of the
 				// callee, and one step moves to the call site in the caller.
@@ -293,8 +318,61 @@ export class GnoDebugSession extends DebugSession {
 		}
 	}
 
-	// isBreakpoint reports whether loc is a breakpoint set by the user. A
-	// location which could not be resolved to a file is assumed to be one.
+	/**
+	 * Reports whether a breakpoint hit belongs to the execution of a line whose hit was already reported.
+	 *
+	 * The VM stops on a breakpoint line each time the location moves within
+	 * it, i.e. once per expression. It also stops there while entering and
+	 * leaving a function called on the line, reporting the line of the call.
+	 * The execution of the line ends at the stop at the start column of its
+	 * statement in the function which stopped first, or at a stop of that
+	 * function on another line.
+	 *
+	 * This assumes one statement per line. A VM which breaks once per
+	 * execution of a statement would make it unnecessary.
+	 *
+	 * @param stop - A stop at a breakpoint set by the user.
+	 * @returns Whether the stop is to be skipped.
+	 */
+	private isSameExecution(stop: GnoStop): boolean {
+		for (const [key, func] of this.executing) {
+			if (func === stop.func && !key.endsWith(`:${stop.loc.line}`)) {
+				this.executing.delete(key);
+			}
+		}
+		const key = `${stop.loc.file}:${stop.loc.line}`;
+		const func = this.executing.get(key);
+		if (func === undefined) {
+			return false;
+		}
+		if (stop.func === func && stop.loc.column === this.statementColumn(stop.loc)) {
+			this.executing.delete(key);
+		}
+		return true;
+	}
+
+	/**
+	 * Returns the column of the first character which is not a space on the line of a location.
+	 *
+	 * @param loc - Location in a source file.
+	 * @returns The column counted from 1, or 0 when the line is unknown or empty.
+	 */
+	private statementColumn(loc: GnoLocation): number {
+		let lines = this.sources.get(loc.file);
+		if (!lines) {
+			lines = fs.existsSync(loc.file) ? fs.readFileSync(loc.file, 'utf8').split('\n') : [];
+			this.sources.set(loc.file, lines);
+		}
+		return (lines[loc.line - 1] ?? '').search(/\S/) + 1;
+	}
+
+	/**
+	 * Reports whether a location is on a breakpoint set by the user.
+	 *
+	 * A location which could not be resolved to a file is assumed to be one.
+	 *
+	 * @param loc - Location of a stop.
+	 */
 	private isBreakpoint(loc: GnoLocation): boolean {
 		if (!path.isAbsolute(loc.file)) {
 			return true;
@@ -308,7 +386,12 @@ export class GnoDebugSession extends DebugSession {
 		return false;
 	}
 
-	// selectFrame moves the debugger to frame n, so that print evaluates there.
+	/**
+	 * Moves the debugger to a frame, so that print evaluates there.
+	 *
+	 * @param n - Frame index, 0 for the innermost frame.
+	 * @returns Whether the debugger is now at that frame.
+	 */
 	private async selectFrame(n: number): Promise<boolean> {
 		if (n !== this.frameLevel) {
 			const cmd = n > this.frameLevel ? `up ${n - this.frameLevel}` : `down ${this.frameLevel - n}`;
@@ -320,6 +403,7 @@ export class GnoDebugSession extends DebugSession {
 		return n === this.frameLevel;
 	}
 
+	/** Sends the terminated event, once. */
 	private terminate() {
 		if (!this.terminated) {
 			this.terminated = true;
@@ -327,12 +411,14 @@ export class GnoDebugSession extends DebugSession {
 		}
 	}
 
+	/** Shows text in the debug console, unless it is empty. */
 	private output(text: string, category: string) {
 		if (text) {
 			this.sendEvent(new OutputEvent(text, category));
 		}
 	}
 
+	/** Runs a request handler, and sends its response or its error. */
 	private async handle(response: DebugProtocol.Response, fn: () => Promise<void>) {
 		try {
 			await fn();
@@ -343,10 +429,12 @@ export class GnoDebugSession extends DebugSession {
 	}
 }
 
+/** Returns the DAP source of a location, if its file is known. */
 function source(loc: GnoLocation): Source | undefined {
 	return path.isAbsolute(loc.file) ? new Source(path.basename(loc.file), loc.file) : undefined;
 }
 
+/** Returns the real path of a file, with symbolic links resolved, or the path itself if it does not exist. */
 function canonical(p: string): string {
 	try {
 		return fs.realpathSync.native(p);
@@ -355,6 +443,7 @@ function canonical(p: string): string {
 	}
 }
 
+/** Reports whether a path is an existing directory. */
 function isDir(p: string): boolean {
 	try {
 		return fs.statSync(p).isDirectory();
@@ -363,11 +452,13 @@ function isDir(p: string): boolean {
 	}
 }
 
+/** Reports whether a path is a directory or its descendant, comparing real paths. */
 function isUnder(p: string, dir: string): boolean {
 	const rel = path.relative(canonical(dir), canonical(p));
 	return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
+/** Returns a TCP port on 127.0.0.1 which is free at the time of the call. */
 function freePort(): Promise<number> {
 	return new Promise((resolve, reject) => {
 		const srv = net.createServer();
@@ -379,6 +470,7 @@ function freePort(): Promise<number> {
 	});
 }
 
+/** Returns the GNOROOT reported by `gno env`, or undefined if gno fails. */
 function gnoRoot(gno: string, cwd: string, env: NodeJS.ProcessEnv): Promise<string | undefined> {
 	return new Promise((resolve) =>
 		execFile(gno, ['env', 'GNOROOT'], { cwd, env }, (err, stdout) =>
