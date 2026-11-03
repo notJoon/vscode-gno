@@ -40,6 +40,8 @@ import {
 	parseStop,
 	parseValue
 } from './gnoDebugClient';
+import { dirExists } from '../utils/pathUtils';
+import { killProcessTree } from '../utils/processUtils';
 
 /** Arguments of a launch request, from the "gno" debug configuration. */
 export interface GnoLaunchArguments extends DebugProtocol.LaunchRequestArguments {
@@ -70,10 +72,12 @@ export class GnoDebugSession extends DebugSession {
 	private frames: GnoFrame[] = [];
 	private lastStop?: GnoLocation;
 	private breakpoints = new Map<string, number[]>();
-	/** Breakpoint lines whose execution is in progress, as "file:line", with the function which stopped there. */
-	private executing = new Map<string, string>();
-	/** Lines of the source files read by {@link GnoDebugSession.statementColumn}. */
+	/** Breakpoint lines whose execution is in progress, keyed by "file:line". */
+	private executing = new Map<string, { line: number; func: string }>();
+	/** Lines of the source files read by {@link GnoDebugSession.sourceLines}. */
 	private sources = new Map<string, string[]>();
+	/** Real paths of files, filled by {@link GnoDebugSession.realPath}. */
+	private realPaths = new Map<string, string>();
 
 	constructor() {
 		super();
@@ -95,7 +99,7 @@ export class GnoDebugSession extends DebugSession {
 			const cwd = args.cwd || path.dirname(path.resolve(args.program));
 			const env = { ...process.env, ...args.env };
 			this.stopOnEntry = !!args.stopOnEntry;
-			const root = await gnoRoot(gno, cwd, env);
+			const [root, port] = await Promise.all([gnoRoot(gno, cwd, env), freePort()]);
 
 			// The VM matches a breakpoint against the file name it knows a source
 			// by. With -debug it maps breakpoint paths under GNOROOT (stdlibs,
@@ -104,15 +108,14 @@ export class GnoDebugSession extends DebugSession {
 			// follow the same rule: relative under GNOROOT, absolute elsewhere.
 			let program = path.resolve(cwd, args.program);
 			let runCwd = cwd;
-			const programDir = isDir(program) ? program : path.dirname(program);
+			const programDir = (await dirExists(program)) ? program : path.dirname(program);
 			const underRoot = !!root && isUnder(programDir, root);
 			if (underRoot) {
 				runCwd = programDir;
 				program = program === programDir ? '.' : path.basename(program);
 			}
-			this.dirs = { gnoRoot: root, programDir: underRoot ? programDir : undefined };
+			this.dirs = { gnoRoot: root, programDir: underRoot ? programDir : undefined, resolved: new Map() };
 
-			const port = await freePort();
 			const runArgs = ['run', '-debug', '-debug-addr', `127.0.0.1:${port}`];
 			if (args.expr) {
 				runArgs.push('-expr', args.expr);
@@ -233,9 +236,9 @@ export class GnoDebugSession extends DebugSession {
 		await this.handle(response, async () => {
 			const frame = this.frames.find((f) => f.index === args.variablesReference - 1);
 			const variables: DebugProtocol.Variable[] = [];
-			if (frame && fs.existsSync(frame.loc.file) && (await this.selectFrame(frame.index))) {
-				const src = fs.readFileSync(frame.loc.file, 'utf8');
-				for (const name of localNames(src, frame.loc.line)) {
+			const lines = frame ? this.sourceLines(frame.loc.file) : [];
+			if (frame && lines.length && (await this.selectFrame(frame.index))) {
+				for (const name of localNames(lines, frame.loc.line)) {
 					const v = parseValue(await this.client.send(`print ${name}`));
 					if (v) {
 						variables.push({ name, value: v.value, type: v.type, variablesReference: 0 });
@@ -266,7 +269,9 @@ export class GnoDebugSession extends DebugSession {
 
 	protected disconnectRequest(response: DebugProtocol.DisconnectResponse): void {
 		this.client.close();
-		this.proc?.kill();
+		if (this.proc) {
+			void killProcessTree(this.proc);
+		}
 		this.sendResponse(response);
 	}
 
@@ -278,41 +283,42 @@ export class GnoDebugSession extends DebugSession {
 	 */
 	private async resume(cmd: string, reason: string) {
 		this.frameLevel = 0;
+		let out = '';
+		const run = async (c: string) => {
+			out = await this.client.send(c);
+			return parseStop(out, this.dirs);
+		};
 		try {
-			for (;;) {
-				let out = await this.client.send(cmd);
-				let stop = parseStop(out, this.dirs);
+			let stop = await run(cmd);
+			if (cmd === 'continue') {
 				// The VM matches breakpoints by file name and line only, so it
 				// also stops in files of other packages with the same name.
-				if (cmd === 'continue' && stop && (!this.isBreakpoint(stop.loc) || this.isSameExecution(stop))) {
-					continue;
+				while (stop && (!this.isBreakpoint(stop.loc) || this.isSameExecution(stop))) {
+					stop = await run(cmd);
 				}
-				if (cmd !== 'continue') {
-					this.executing.clear();
-				} else if (stop) {
-					this.executing.set(`${stop.loc.file}:${stop.loc.line}`, stop.func);
+				if (stop) {
+					this.executing.set(`${stop.loc.file}:${stop.loc.line}`, { line: stop.loc.line, func: stop.func });
 				}
-				// After stepout the VM still reports the return statement of the
-				// callee, and one step moves to the call site in the caller.
-				if (cmd === 'stepout' && stop && stop.loc.raw === this.lastStop?.raw) {
-					out = await this.client.send('step');
-					stop = parseStop(out, this.dirs);
-				}
-				// The VM steps by expression, and after entering a function it
-				// reports the line of the call site for a few steps. Step in
-				// repeats until another line, as users expect from F11.
-				const line = this.lastStop?.line;
-				for (let i = 0; cmd === 'step' && stop && stop.loc.line === line && i < 1000; i++) {
-					out = await this.client.send('step');
-					stop = parseStop(out, this.dirs);
-				}
-				this.lastStop = stop?.loc;
-				if (!stop && out.trim()) {
-					this.output(out + '\n', 'console');
-				}
-				this.sendEvent(new StoppedEvent(reason, THREAD_ID));
-				return;
+			} else {
+				this.executing.clear();
 			}
+			// After stepout the VM still reports the last location in the
+			// callee, and one step moves to the call site in the caller.
+			if (cmd === 'stepout' && stop) {
+				stop = await run('step');
+			}
+			// The VM steps by expression, and after entering a function it
+			// reports the line of the call site for a few steps. Step in
+			// repeats until another line, as users expect from F11.
+			const line = this.lastStop?.line;
+			for (let i = 0; cmd === 'step' && stop && stop.loc.line === line && i < 1000; i++) {
+				stop = await run('step');
+			}
+			this.lastStop = stop?.loc;
+			if (!stop && out.trim()) {
+				this.output(out + '\n', 'console');
+			}
+			this.sendEvent(new StoppedEvent(reason, THREAD_ID));
 		} catch {
 			this.terminate();
 		}
@@ -335,17 +341,17 @@ export class GnoDebugSession extends DebugSession {
 	 * @returns Whether the stop is to be skipped.
 	 */
 	private isSameExecution(stop: GnoStop): boolean {
-		for (const [key, func] of this.executing) {
-			if (func === stop.func && !key.endsWith(`:${stop.loc.line}`)) {
+		for (const [key, e] of this.executing) {
+			if (e.func === stop.func && e.line !== stop.loc.line) {
 				this.executing.delete(key);
 			}
 		}
 		const key = `${stop.loc.file}:${stop.loc.line}`;
-		const func = this.executing.get(key);
-		if (func === undefined) {
+		const e = this.executing.get(key);
+		if (!e) {
 			return false;
 		}
-		if (stop.func === func && stop.loc.column === this.statementColumn(stop.loc)) {
+		if (stop.func === e.func && stop.loc.column === this.statementColumn(stop.loc)) {
 			this.executing.delete(key);
 		}
 		return true;
@@ -358,12 +364,27 @@ export class GnoDebugSession extends DebugSession {
 	 * @returns The column counted from 1, or 0 when the line is unknown or empty.
 	 */
 	private statementColumn(loc: GnoLocation): number {
-		let lines = this.sources.get(loc.file);
+		return (this.sourceLines(loc.file)[loc.line - 1] ?? '').search(/\S/) + 1;
+	}
+
+	/** Returns the lines of a source file, or none if it does not exist. */
+	private sourceLines(file: string): string[] {
+		let lines = this.sources.get(file);
 		if (!lines) {
-			lines = fs.existsSync(loc.file) ? fs.readFileSync(loc.file, 'utf8').split('\n') : [];
-			this.sources.set(loc.file, lines);
+			lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n') : [];
+			this.sources.set(file, lines);
 		}
-		return (lines[loc.line - 1] ?? '').search(/\S/) + 1;
+		return lines;
+	}
+
+	/** Returns the real path of a file, computed once per file. */
+	private realPath(file: string): string {
+		let real = this.realPaths.get(file);
+		if (real === undefined) {
+			real = canonical(file);
+			this.realPaths.set(file, real);
+		}
+		return real;
 	}
 
 	/**
@@ -377,9 +398,8 @@ export class GnoDebugSession extends DebugSession {
 		if (!path.isAbsolute(loc.file)) {
 			return true;
 		}
-		const file = canonical(loc.file);
 		for (const [f, lines] of this.breakpoints) {
-			if (lines.includes(loc.line) && canonical(f) === file) {
+			if (lines.includes(loc.line) && this.realPath(f) === this.realPath(loc.file)) {
 				return true;
 			}
 		}
@@ -440,15 +460,6 @@ function canonical(p: string): string {
 		return fs.realpathSync.native(p);
 	} catch {
 		return p;
-	}
-}
-
-/** Reports whether a path is an existing directory. */
-function isDir(p: string): boolean {
-	try {
-		return fs.statSync(p).isDirectory();
-	} catch {
-		return false;
 	}
 }
 

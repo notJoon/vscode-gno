@@ -39,9 +39,13 @@ func main() {
 }
 `;
 
-// lineOf returns the 1-based line of the first line of src matching re.
-function lineOf(src: string, re: RegExp): number {
-	return src.split('\n').findIndex((l) => re.test(l)) + 1;
+/**
+ * Returns the line number, counted from 1, of the first line of src matching re.
+ *
+ * @param from - Number of lines to skip at the start of src.
+ */
+function lineOf(src: string, re: RegExp, from = 0): number {
+	return src.split('\n').findIndex((l, i) => i >= from && re.test(l)) + 1;
 }
 
 // Drives a real `gno run -debug-addr` through the adapter. Skipped without gno.
@@ -53,6 +57,19 @@ suite('GnoDebugSession', function () {
 	let root: string;
 	let stdFile: string;
 	let stdLine: number;
+	const launchArgs = () => ({ type: 'gno', request: 'launch', program: dir });
+
+	/** Connects a new client to the adapter server. */
+	async function connect() {
+		dc = new DebugClient('node', '', 'gno');
+		await dc.start((server.address() as net.AddressInfo).port);
+	}
+
+	/** Replaces the client, ending its session, to launch the program again. */
+	async function restart() {
+		await dc.stop();
+		await connect();
+	}
 
 	suiteSetup(function () {
 		const r = gnoRoot();
@@ -63,9 +80,8 @@ suite('GnoDebugSession', function () {
 		stdFile = path.join(root, 'gnovm', 'stdlibs', 'strings', 'strings.gno');
 		// A statement of strings.ToUpper. The VM never stops at some statements
 		// such as its first one, assigning constants.
-		const lines = fs.readFileSync(stdFile, 'utf8').split('\n');
-		const start = lines.findIndex((l) => /^func ToUpper\(/.test(l));
-		stdLine = start + lines.slice(start).findIndex((l) => /^\t\tc := s\[i\]$/.test(l)) + 1;
+		const src = fs.readFileSync(stdFile, 'utf8');
+		stdLine = lineOf(src, /^\t\tc := s\[i\]$/, lineOf(src, /^func ToUpper\(/));
 	});
 
 	setup(async () => {
@@ -79,8 +95,7 @@ suite('GnoDebugSession', function () {
 				session.start(s, s);
 			})
 			.listen(0);
-		dc = new DebugClient('node', '', 'gno');
-		await dc.start((server.address() as net.AddressInfo).port);
+		await connect();
 	});
 
 	teardown(async () => {
@@ -91,7 +106,7 @@ suite('GnoDebugSession', function () {
 
 	test('stops at a breakpoint, shows locals and steps to the end', async () => {
 		const file = path.join(dir, 'main.gno');
-		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 4 });
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 4 });
 
 		const st = await dc.stackTraceRequest({ threadId: 1 });
 		assert.deepStrictEqual(
@@ -135,10 +150,9 @@ suite('GnoDebugSession', function () {
 	// The VM stops several times on a breakpoint line during one execution of it.
 	test('stops once per execution of a breakpoint line', async () => {
 		const file = path.join(dir, 'main.gno');
-		const launch = { type: 'gno', request: 'launch', program: dir };
 
 		// An expression statement, then the end of the program.
-		await dc.hitBreakpoint(launch, { path: file, line: 4 });
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 4 });
 		await Promise.all([
 			dc.continueRequest({ threadId: 1 }),
 			dc.assertOutput('stdout', 'result 3'),
@@ -147,10 +161,8 @@ suite('GnoDebugSession', function () {
 
 		// A call line and a breakpoint in the callee: the call line does not
 		// stop again when the callee returns.
-		await dc.stop();
-		dc = new DebugClient('node', '', 'gno');
-		await dc.start((server.address() as net.AddressInfo).port);
-		await dc.hitBreakpoint(launch, { path: file, line: 10 });
+		await restart();
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 10 });
 		await dc.setBreakpointsRequest({ source: { path: file }, breakpoints: [{ line: 10 }, { line: 4 }] });
 		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.assertStoppedLocation('breakpoint', { line: 4 })]);
 		await Promise.all([dc.continueRequest({ threadId: 1 }), dc.waitForEvent('terminated')]);
@@ -160,10 +172,8 @@ suite('GnoDebugSession', function () {
 			file,
 			'package main\n\nfunc main() {\n\ts := 0\n\tfor i := 0; i < 3; i++ {\n\t\ts += i\n\t}\n\tprintln(s)\n}\n'
 		);
-		await dc.stop();
-		dc = new DebugClient('node', '', 'gno');
-		await dc.start((server.address() as net.AddressInfo).port);
-		await dc.hitBreakpoint(launch, { path: file, line: 6 });
+		await restart();
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 6 });
 		for (let i = 1; i < 3; i++) {
 			await Promise.all([
 				dc.continueRequest({ threadId: 1 }),
@@ -177,17 +187,20 @@ suite('GnoDebugSession', function () {
 
 	test('steps into a function and into a stdlib', async () => {
 		const file = path.join(dir, 'main.gno');
-		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 10 });
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 10 });
 		await Promise.all([
 			dc.stepInRequest({ threadId: 1 }),
 			dc.assertStoppedLocation('step', { path: file, line: 4 })
 		]);
+		// Step out from the first line of add, not from its return statement.
+		await Promise.all([
+			dc.stepOutRequest({ threadId: 1 }),
+			dc.assertStoppedLocation('step', { path: file, line: 10 })
+		]);
 
 		fs.writeFileSync(file, UPPER);
-		await dc.stop();
-		dc = new DebugClient('node', '', 'gno');
-		await dc.start((server.address() as net.AddressInfo).port);
-		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: file, line: 6 });
+		await restart();
+		await dc.hitBreakpoint(launchArgs(), { path: file, line: 6 });
 		const [, stopped] = await Promise.all([dc.stepInRequest({ threadId: 1 }), dc.waitForEvent('stopped')]);
 		assert.strictEqual(stopped.body.reason, 'step');
 		const st = await dc.stackTraceRequest({ threadId: 1 });
@@ -199,7 +212,7 @@ suite('GnoDebugSession', function () {
 
 	test('stops at a breakpoint in a stdlib', async () => {
 		fs.writeFileSync(path.join(dir, 'main.gno'), UPPER);
-		await dc.hitBreakpoint({ type: 'gno', request: 'launch', program: dir }, { path: stdFile, line: stdLine });
+		await dc.hitBreakpoint(launchArgs(), { path: stdFile, line: stdLine });
 		const st = await dc.stackTraceRequest({ threadId: 1 });
 		assert.strictEqual(st.body.stackFrames[0].name, 'strings.ToUpper');
 		const s = await dc.evaluateRequest({ expression: 's', frameId: 0 });

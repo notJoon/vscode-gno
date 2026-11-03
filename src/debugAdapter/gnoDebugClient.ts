@@ -22,8 +22,6 @@ const PROMPT = 'dbg> ';
 
 /** A source location reported by the debugger. */
 export interface GnoLocation {
-	/** Location as printed by the debugger, "<pkgpath>/<file>:<line>:<col>". */
-	raw: string;
 	/** Absolute path of the source file, or the printed path if it was not found. */
 	file: string;
 	line: number;
@@ -38,10 +36,8 @@ export interface GnoStop {
 }
 
 /** A frame of the call stack, the innermost one having index 0. */
-export interface GnoFrame {
+export interface GnoFrame extends GnoStop {
 	index: number;
-	func: string;
-	loc: GnoLocation;
 }
 
 /** A value printed by the debugger. */
@@ -90,11 +86,6 @@ export class GnoDebugClient {
 		this.socket.on('error', () => this.socket?.destroy());
 		this.socket.on('close', () => this.onSocketClose());
 		return this.await();
-	}
-
-	/** Whether the debugger closed the connection. */
-	get isClosed(): boolean {
-		return this.closed;
 	}
 
 	/**
@@ -153,6 +144,8 @@ export interface Dirs {
 	gnoRoot?: string;
 	/** Directory of the debugged program, whose files are relative when it lives under GNOROOT. */
 	programDir?: string;
+	/** Files already resolved from their printed path, filled by {@link parseLocation}. */
+	resolved?: Map<string, string>;
 }
 
 /**
@@ -171,7 +164,12 @@ export function parseLocation(raw: string, dirs: Dirs = {}): GnoLocation | undef
 	if (!m) {
 		return undefined;
 	}
-	return { raw: raw.trim(), file: resolveFile(m[1], dirs), line: Number(m[2]), column: Number(m[3]) };
+	let file = dirs.resolved?.get(m[1]);
+	if (file === undefined) {
+		file = resolveFile(m[1], dirs);
+		dirs.resolved?.set(m[1], file);
+	}
+	return { file, line: Number(m[2]), column: Number(m[3]) };
 }
 
 function resolveFile(p: string, { gnoRoot, programDir }: Dirs): string {
@@ -268,12 +266,11 @@ export function commandError(out: string): string | undefined {
  * names declared before the line in its body. The guess reads lines of text and
  * ignores block scopes. A lister using go/ast in gno would be exact.
  *
- * @param src - Source of the file.
+ * @param lines - Lines of the source file.
  * @param line - Line number, counted from 1.
  * @returns The names, in order of declaration.
  */
-export function localNames(src: string, line: number): string[] {
-	const lines = src.split('\n');
+export function localNames(lines: string[], line: number): string[] {
 	let start = -1;
 	for (let i = Math.min(line, lines.length) - 1; i >= 0; i--) {
 		if (/^func\b/.test(lines[i])) {

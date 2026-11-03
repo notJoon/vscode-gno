@@ -12,7 +12,6 @@ import {
 suite('gnoDebugClient parsers', () => {
 	test('parseLocation drops the pkgpath of absolute files', () => {
 		assert.deepStrictEqual(parseLocation('main//tmp/x/main.gno:6:7'), {
-			raw: 'main//tmp/x/main.gno:6:7',
 			file: '/tmp/x/main.gno',
 			line: 6,
 			column: 7
@@ -26,7 +25,7 @@ suite('gnoDebugClient parsers', () => {
 		const out = '> main.add() main//tmp/x/main.gno:6:7\n  Realm: "main"\n=>    6: \tc := a + b\n';
 		assert.deepStrictEqual(parseStop(out), {
 			func: 'main.add',
-			loc: { raw: 'main//tmp/x/main.gno:6:7', file: '/tmp/x/main.gno', line: 6, column: 7 }
+			loc: { file: '/tmp/x/main.gno', line: 6, column: 7 }
 		});
 		assert.strictEqual(parseStop('> main main//tmp/x/main.gno:14:2\n')?.func, 'main');
 		assert.strictEqual(parseStop('Welcome to the Gnovm debugger.\n'), undefined);
@@ -59,7 +58,7 @@ suite('gnoDebugClient parsers', () => {
 	});
 
 	test('localNames', () => {
-		const src = [
+		const lines = [
 			'package main',
 			'',
 			'func (r *T) add(a, b int, s string) int {',
@@ -74,11 +73,11 @@ suite('gnoDebugClient parsers', () => {
 			'func main() {',
 			'\tx := 1',
 			'}'
-		].join('\n');
-		assert.deepStrictEqual(localNames(src, 9), ['r', 'a', 'b', 's', 'c', 'd', 'e', 'i', 'v']);
+		];
+		assert.deepStrictEqual(localNames(lines, 9), ['r', 'a', 'b', 's', 'c', 'd', 'e', 'i', 'v']);
 		// Names declared on or after the current line are not yet in scope.
-		assert.deepStrictEqual(localNames(src, 4), ['r', 'a', 'b', 's']);
-		assert.deepStrictEqual(localNames(src, 13), []);
-		assert.deepStrictEqual(localNames(src, 1), []);
+		assert.deepStrictEqual(localNames(lines, 4), ['r', 'a', 'b', 's']);
+		assert.deepStrictEqual(localNames(lines, 13), []);
+		assert.deepStrictEqual(localNames(lines, 1), []);
 	});
 });
