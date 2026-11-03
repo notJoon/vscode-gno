@@ -91,7 +91,9 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 		await setGOROOTEnvVar(configGOROOT);
 	}
 
-	await updateGoVarsFromConfig(goCtx);
+	// Without gno, it rejects after suggesting to install it. The rest of the
+	// extension still activates.
+	await updateGoVarsFromConfig(goCtx).catch(() => undefined);
 
 	const registerCommand = commands.createRegisterCommand(ctx, goCtx);
 	registerCommand('gno.languageserver.restart', commands.startLanguageServer);
