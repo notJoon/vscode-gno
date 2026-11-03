@@ -15,7 +15,8 @@ import {
 	goTest,
 	TestConfig,
 	//SuiteToTestMap,
-	getTestFunctions
+	getTestFunctions,
+	testPackageDir
 } from './testUtils';
 
 // lastTestConfig holds a reference to the last executed TestConfig which allows
@@ -40,6 +41,10 @@ async function _testAtCursor(
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		throw new NotFoundError('No editor is active.');
+	}
+	if (editor.document.fileName.endsWith('_filetest.gno')) {
+		await editor.document.save();
+		return runFiletest(editor, goConfig, args);
 	}
 	if (!editor.document.fileName.endsWith('_test.gno')) {
 		throw new NotFoundError('No tests found. Current file is not a test file.');
@@ -124,6 +129,27 @@ async function runTestAtCursor(
 }
 
 /**
+ * Runs the filetest in the active editor. A filetest has no test functions, it
+ * runs its main function as a whole. With `args.updateGolden`, gno rewrites
+ * the golden directives of the file (Output, Error, ...) with the actual
+ * results. That run is not kept as the previous test, so running the previous
+ * test again does not rewrite the file.
+ */
+function runFiletest(editor: vscode.TextEditor, goConfig: vscode.WorkspaceConfiguration, args: any) {
+	const flags = getTestFlags(goConfig, args);
+	const testConfig: TestConfig = {
+		goConfig,
+		dir: testPackageDir(editor.document.fileName),
+		flags: args?.updateGolden ? [...flags, '-update-golden-tests'] : flags,
+		filetests: [path.basename(editor.document.fileName)]
+	};
+	if (!args?.updateGolden) {
+		lastTestConfig = testConfig;
+	}
+	return goTest(testConfig);
+}
+
+/**
  * Runs all tests in the package of the source of the active editor.
  *
  * @param goConfig Configuration for the Go extension.
@@ -139,7 +165,7 @@ export function testCurrentPackage(): CommandFactory {
 
 		const testConfig: TestConfig = {
 			goConfig,
-			dir: path.dirname(editor.document.fileName),
+			dir: testPackageDir(editor.document.fileName),
 			flags: getTestFlags(goConfig, args)
 		};
 		lastTestConfig = testConfig;
@@ -194,6 +220,10 @@ export function testCurrentFile(getConfig = getGnoConfig): CommandFactory {
 		if (!editor) {
 			vscode.window.showInformationMessage('No editor is active.');
 			return false;
+		}
+		if (editor.document.fileName.endsWith('_filetest.gno')) {
+			await editor.document.save();
+			return runFiletest(editor, goConfig, args);
 		}
 		if (!editor.document.fileName.endsWith('_test.gno')) {
 			vscode.window.showInformationMessage('No tests found. Current file is not a test file.');

@@ -178,7 +178,7 @@ export class GoTestExplorer {
 			})
 		);
 
-		const watcher = workspace.createFileSystemWatcher('**/*_test.gno', false, true, false);
+		const watcher = workspace.createFileSystemWatcher('**/*{_test,_filetest}.gno', false, true, false);
 		context.subscriptions.push(watcher);
 		context.subscriptions.push(
 			watcher.onDidCreate(async (x) => {
@@ -307,7 +307,7 @@ export class GoTestExplorer {
 
 	// Handle opened documents, document changes, and file creation.
 	private async documentUpdate(doc: TextDocument, ranges?: Range[]) {
-		if (!doc.uri.path.endsWith('_test.gno')) {
+		if (!doc.uri.path.endsWith('_test.gno') && !doc.uri.path.endsWith('_filetest.gno')) {
 			return;
 		}
 

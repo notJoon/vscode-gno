@@ -43,7 +43,13 @@ export class GoRunTestCodeLensProvider extends GoBaseCodeLensProvider {
 		const config = getGnoConfig(document.uri);
 		const codeLensConfig = config.get<{ [key: string]: any }>('enableCodeLens');
 		const codelensEnabled = codeLensConfig ? codeLensConfig['runtest'] : false;
-		if (!codelensEnabled || !document.fileName.endsWith('_test.gno')) {
+		if (!codelensEnabled) {
+			return [];
+		}
+		if (document.fileName.endsWith('_filetest.gno')) {
+			return this.getCodeLensForFiletest(document);
+		}
+		if (!document.fileName.endsWith('_test.gno')) {
 			return [];
 		}
 
@@ -52,6 +58,29 @@ export class GoRunTestCodeLensProvider extends GoBaseCodeLensProvider {
 			this.getCodeLensForFunctions(document, token)
 		]);
 		return ([] as CodeLens[]).concat(...codelenses);
+	}
+
+	/**
+	 * A filetest runs its main function and compares the result against its
+	 * directives as a whole, so the lens sits at the top of the file.
+	 */
+	private getCodeLensForFiletest(document: TextDocument): CodeLens[] {
+		const range = document.lineAt(0).range;
+		return [
+			new CodeLens(range, {
+				title: 'run filetest',
+				command: 'gno.test.cursor'
+			}),
+			new CodeLens(range, {
+				title: 'update golden',
+				command: 'gno.test.cursor',
+				arguments: [{ updateGolden: true }]
+			}),
+			new CodeLens(range, {
+				title: 'run package tests',
+				command: 'gno.test.package'
+			})
+		];
 	}
 
 	private async getCodeLensForPackage(document: TextDocument, token: CancellationToken): Promise<CodeLens[]> {

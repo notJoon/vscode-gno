@@ -5,23 +5,28 @@
 import * as vscode from 'vscode';
 import { GoTestResolver } from './resolve';
 
-// GoTestKind indicates the Go construct represented by a test item.
-//
-// - A 'module' is a folder that contains a go.mod file
-// - A 'workspace' is a VSCode workspace folder that contains .go files outside
-//   of a module
-// - A 'package' is a folder that contains .go files (and is not a module)
-// - A 'file' is a file ending with _test.go
-// - A 'test' is a Go test, e.g. func TestXxx(t *testing.T)
-// - A 'benchmark' is a Go benchmark, e.g. func BenchmarkXxx(t *testing.B)
-// - A 'fuzz' is a Fuzz test, e.g., func TestFuzz(f *testing.F)
-// - An 'example' is a Go example, e.g. func ExampleXxx()
-//
-// The top-level test item for a workspace folder is always either a module or a
-// workspace. If the user opens a file (containing tests) that is not contained
-// within any workspace folder, a top-level package will be created as a parent
-// of that file.
-export type GoTestKind = 'module' | 'workspace' | 'package' | 'file' | 'test' | 'benchmark' | 'fuzz' | 'example';
+/**
+ * GoTestKind indicates the Go construct represented by a test item.
+ *
+ * - A 'module' is a folder that contains a go.mod file
+ * - A 'workspace' is a VSCode workspace folder that contains .go files outside
+ *   of a module
+ * - A 'package' is a folder that contains .go files (and is not a module)
+ * - A 'file' is a file ending with _test.go
+ * - A 'test' is a Go test, e.g. func TestXxx(t *testing.T)
+ * - A 'benchmark' is a Go benchmark, e.g. func BenchmarkXxx(t *testing.B)
+ * - A 'fuzz' is a Fuzz test, e.g., func TestFuzz(f *testing.F)
+ * - An 'example' is a Go example, e.g. func ExampleXxx()
+ * - A 'filetest' is the main function of a *_filetest.gno file, which runs as
+ *   a whole
+ *
+ * The top-level test item for a workspace folder is always either a module or a
+ * workspace. If the user opens a file (containing tests) that is not contained
+ * within any workspace folder, a top-level package will be created as a parent
+ * of that file.
+ */
+export type GoTestKind =
+	'module' | 'workspace' | 'package' | 'file' | 'test' | 'benchmark' | 'fuzz' | 'example' | 'filetest';
 
 export class GoTest {
 	// Constructs an ID for an item. The ID of a test item consists of the URI
@@ -119,13 +124,16 @@ export function disposeIfEmpty(resolver: GoTestResolver, item: vscode.TestItem |
 	disposeIfEmpty(resolver, item.parent);
 }
 
-// The 'name' group captures the module name, and the unnamed group ignores any comment that might follow the name.
-const moduleNameRegex = /^module.(?<name>.*?)(?:\s|\/\/|$)/mu;
+/**
+ * The 'name' group captures the module name of both `module foo` in gno.mod
+ * and `module = "foo"` in gnomod.toml, without a comment that may follow.
+ */
+const moduleNameRegex = /^module\s*=?\s*"?(?<name>[^"\s]+)/mu;
 
 export function findModuleName(goModContent: string): string {
 	const match = goModContent.toString().match(moduleNameRegex);
 	if (match === null) {
-		throw new Error('failed to find module name in gno.mod');
+		throw new Error('failed to find module name in gnomod.toml or gno.mod');
 	}
 	return match.groups?.name ?? '';
 }

@@ -19,9 +19,9 @@ import {
 import path = require('path');
 import vscode = require('vscode');
 import { outputChannel } from '../gnoStatus';
-import { getModFolderPath } from '../gnoModules';
 import { getCurrentGoPath } from '../util';
 import { getGnoConfig } from '../config';
+import { testPackageDir } from '../testUtils';
 import { dispose, disposeIfEmpty, FileSystem, GoTest, GoTestKind, findModuleName, isInTest, Workspace } from './utils';
 import { walk, WalkStop } from './walk';
 
@@ -111,14 +111,22 @@ export class GoTestResolver {
 			});
 		}
 
-		// The user expanded a module or package - find all files
+		// The user expanded a module or package. Find all test files, including
+		// the filetests in a filetests directory.
 		if (kind === 'module' || kind === 'package') {
 			for (const [file, type] of await this.workspace.fs.readDirectory(item.uri)) {
-				if (type !== FileType.File || !file.endsWith('_test.gno')) {
+				if (type === FileType.File && isTestFile(file)) {
+					await this.getFile(Uri.joinPath(item.uri, file));
+				}
+				if (type !== FileType.Directory || file !== 'filetests') {
 					continue;
 				}
-
-				await this.getFile(Uri.joinPath(item.uri, file));
+				const dir = Uri.joinPath(item.uri, file);
+				for (const [file, type] of await this.workspace.fs.readDirectory(dir)) {
+					if (type === FileType.File && file.endsWith('_filetest.gno')) {
+						await this.getFile(Uri.joinPath(dir, file));
+					}
+				}
 			}
 		}
 
@@ -209,10 +217,18 @@ export class GoTestResolver {
 	async processDocument(doc: TextDocument, ranges?: Range[]) {
 		const seen = new Set<string>();
 		const item = await this.getFile(doc.uri);
-		const symbols = await this.provideDocumentSymbols(doc);
-		//const testify = importsTestify(symbols);
-		for (const symbol of symbols) {
-			await this.processSymbol(doc, item, seen, false, symbol);
+		if (doc.uri.path.endsWith('_filetest.gno')) {
+			// A filetest runs as a whole, so it has a single test item. Edits do
+			// not move it, it stays at the top of the file.
+			const name = path.basename(doc.uri.path);
+			seen.add(name);
+			this.getOrCreateItem(item, 'main', doc.uri, 'filetest', name).range = doc.lineAt(0).range;
+			ranges = undefined;
+		} else {
+			const symbols = await this.provideDocumentSymbols(doc);
+			for (const symbol of symbols) {
+				await this.processSymbol(doc, item, seen, false, symbol);
+			}
 		}
 
 		item.children.forEach((child) => {
@@ -240,7 +256,7 @@ export class GoTestResolver {
 
 	// Retrieve or create an item for a Go file.
 	public async getFile(uri: Uri): Promise<TestItem> {
-		const dir = path.dirname(uri.path);
+		const dir = testPackageDir(uri.path);
 		const pkg = await this.getPackage(uri.with({ path: dir, query: '', fragment: '' }));
 		const existing = this.getItem(pkg, uri, 'file');
 		if (existing) {
@@ -308,9 +324,10 @@ export class GoTestResolver {
 			return existing;
 		}
 
-		// Read go.mod
-		const goMod = Uri.joinPath(uri, 'gno.mod');
-		const contents = await this.workspace.fs.readFile(goMod);
+		const contents = await readModFile(this.workspace.fs, uri);
+		if (!contents) {
+			throw new Error(`no gnomod.toml or gno.mod in ${uri.fsPath}`);
+		}
 
 		// Use the module name as the label
 		const label = findModuleName(contents.toString());
@@ -337,10 +354,9 @@ export class GoTestResolver {
 		let item: TestItem;
 
 		const nested = getGnoConfig(uri).get('testExplorer.packageDisplayMode') === 'nested';
-		const modDirPath = await getModFolderPath(uri, true);
 		const wsfolder = workspace.getWorkspaceFolder(uri);
-		if (modDirPath) {
-			const modDir = Uri.file(modDirPath); // TODO support non-file schemes
+		const modDir = await findModuleDir(this.workspace.fs, uri, wsfolder);
+		if (modDir) {
 			// If the package is in a module, add it as a child of the module
 			let parent = await this.getModule(modDir);
 			if (uri.path === parent.uri?.path) {
@@ -506,7 +522,7 @@ async function walkWorkspaces(fs: FileSystem, uri: Uri): Promise<Map<string, boo
 			return;
 		}
 
-		if (file === 'gno.mod') {
+		if (modFiles.includes(file)) {
 			// BUG(firelizard18): This does not create a separate entry for
 			// modules within a module. Thus, tests in a module within another
 			// module will appear under the top-level module's tree. This may or
@@ -522,13 +538,62 @@ async function walkWorkspaces(fs: FileSystem, uri: Uri): Promise<Map<string, boo
 	return found;
 }
 
-// Walk the workspace, calling the callback for any directory that contains a Go
-// test file.
+/**
+ * Walks the workspace, calling the callback for any package directory that
+ * contains a test file or a filetest, directly or in its filetests directory.
+ */
 async function walkPackages(fs: FileSystem, uri: Uri, cb: (uri: Uri) => Promise<unknown>) {
 	await walk(fs, uri, async (dir, file) => {
-		if (file.endsWith('_test.gno')) {
-			await cb(dir);
+		if (isTestFile(file)) {
+			await cb(Uri.file(testPackageDir(Uri.joinPath(dir, file).fsPath)));
 			return WalkStop.Files;
 		}
 	});
+}
+
+/**
+ * Files that declare a module, gnomod.toml first.
+ */
+const modFiles = ['gnomod.toml', 'gno.mod'];
+
+/**
+ * Returns whether the file holds unit tests or is a filetest.
+ */
+function isTestFile(file: string): boolean {
+	return file.endsWith('_test.gno') || file.endsWith('_filetest.gno');
+}
+
+/**
+ * Reads the module file of a directory.
+ *
+ * @returns The contents, or undefined if the directory has no module file.
+ */
+async function readModFile(fs: FileSystem, dir: Uri): Promise<Uint8Array | undefined> {
+	for (const file of modFiles) {
+		try {
+			return await fs.readFile(Uri.joinPath(dir, file));
+		} catch {
+			// Try the next one.
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Finds the module of a package, which is the closest directory with a module
+ * file from the package directory up to the workspace folder.
+ *
+ * @returns The module directory, or undefined outside of a module.
+ */
+async function findModuleDir(fs: FileSystem, dir: Uri, ws?: WorkspaceFolder): Promise<Uri | undefined> {
+	for (let d = dir; ;) {
+		if (await readModFile(fs, d)) {
+			return d;
+		}
+		const parent = Uri.joinPath(d, '..');
+		if (parent.path === d.path || !ws || !parent.path.startsWith(ws.uri.path)) {
+			return undefined;
+		}
+		d = parent;
+	}
 }

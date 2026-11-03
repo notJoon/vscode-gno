@@ -195,6 +195,11 @@
         "description": "Runs all unit tests in the current file."
       },
       {
+        "command": "gno.test.package",
+        "title": "Gno: Test Package",
+        "description": "Runs all unit tests and filetests in the package of the current file."
+      },
+      {
         "command": "gno.test.refresh",
         "title": "Gno Test: Refresh",
         "description": "Refresh a test in the test explorer. Only available as a context menu option in the test explorer.",
