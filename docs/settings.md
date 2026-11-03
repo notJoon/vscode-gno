@@ -139,13 +139,13 @@ map[broadcast:true gasFee:1000000ugnot gasWanted:4000000]
 
 ### `gno.network`
 
-Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. When empty, the first network is used.
+Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. The default `local` network is the node started by gnodev.
 
-Default: `""`
+Default: `"local"`
 
 ### `gno.networks`
 
-Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev. Select one with `#gno.network#` or the **Gno: Select Network** command.
+Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev, and can be changed by defining `local` here. Select a network with `#gno.network#` or the **Gno: Select Network** command.
 
 Default:
 ```

@@ -12,47 +12,49 @@ export interface GnoNetwork {
 	chainId: string;
 }
 
-let statusBarItem: vscode.StatusBarItem | undefined;
-
-/**
- * Returns the networks of `gno.networks`, in the order they are configured.
- */
-export function getNetworks(): GnoNetwork[] {
+function getNetworks(): GnoNetwork[] {
 	const networks = getGnoConfig().get<Record<string, Omit<GnoNetwork, 'name'>>>('networks') ?? {};
 	return Object.entries(networks).map(([name, n]) => ({ name, remote: n.remote, chainId: n.chainId }));
 }
 
-/**
- * Returns the network named by `gno.network`, or the first network when it is
- * empty. Returns undefined when the named network is not in `gno.networks`.
- */
-export function getSelectedNetwork(): GnoNetwork | undefined {
-	const networks = getNetworks();
-	const selected = getGnoConfig().get<string>('network');
-	return selected ? networks.find((n) => n.name === selected) : networks[0];
+function selectedName(): string {
+	return getGnoConfig().get<string>('network') ?? '';
+}
+
+function describe(n: GnoNetwork): string {
+	return `${n.remote} (chain ID ${n.chainId})`;
 }
 
 /**
- * Shows an error for a `gno.network` that is not in `gno.networks`, with an
- * action to select another network.
+ * Returns the network named by `gno.network`, or undefined when it is not in
+ * `gno.networks`.
  */
-export async function showUnknownNetworkError() {
-	const selected = getGnoConfig().get<string>('network');
-	const action = await vscode.window.showErrorMessage(
-		`Network "${selected}" is not in gno.networks.`,
-		'Select Network'
-	);
-	if (action) {
-		await vscode.commands.executeCommand('gno.network.select');
+export function getSelectedNetwork(): GnoNetwork | undefined {
+	const name = selectedName();
+	return getNetworks().find((n) => n.name === name);
+}
+
+/**
+ * Returns the selected network for a chain command. When it is not in
+ * `gno.networks`, shows an error with an action to select another network and
+ * returns undefined.
+ */
+export function requireSelectedNetwork(): GnoNetwork | undefined {
+	const network = getSelectedNetwork();
+	if (!network) {
+		vscode.window
+			.showErrorMessage(`Network "${selectedName()}" is not in gno.networks.`, 'Select Network')
+			.then((action) => action && vscode.commands.executeCommand('gno.network.select'));
 	}
+	return network;
 }
 
 export const selectNetwork: CommandFactory = () => async () => {
-	const current = getSelectedNetwork()?.name;
+	const current = selectedName();
 	const picked = await vscode.window.showQuickPick(
 		getNetworks().map((n) => ({
 			label: n.name,
-			description: `${n.name === current ? '$(check) ' : ''}${n.remote} (chain ID ${n.chainId})`
+			description: `${n.name === current ? '$(check) ' : ''}${describe(n)}`
 		})),
 		{ placeHolder: 'Select the network for Gno transactions and queries' }
 	);
@@ -68,39 +70,37 @@ export const selectNetwork: CommandFactory = () => async () => {
  * Shows the selected network in the status bar while a Gno file is open.
  */
 export function setupNetworkStatusBar(ctx: vscode.ExtensionContext) {
-	statusBarItem = vscode.window.createStatusBarItem('gno.network', vscode.StatusBarAlignment.Right, 100);
-	statusBarItem.name = 'Gno Network';
-	statusBarItem.command = 'gno.network.select';
+	const item = vscode.window.createStatusBarItem('gno.network', vscode.StatusBarAlignment.Right, 100);
+	item.name = 'Gno Network';
+	item.command = 'gno.network.select';
+
+	const update = () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor || !isGoFile(editor.document)) {
+			item.hide();
+			return;
+		}
+		const network = getSelectedNetwork();
+		if (network) {
+			item.text = `$(globe) ${network.name}`;
+			item.tooltip = `Gno network: ${describe(network)}. Click to change.`;
+			item.backgroundColor = undefined;
+		} else {
+			item.text = `$(globe) ${selectedName()}?`;
+			item.tooltip = 'The selected network is not in gno.networks. Click to select another one.';
+			item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+		}
+		item.show();
+	};
+
 	ctx.subscriptions.push(
-		statusBarItem,
-		vscode.window.onDidChangeActiveTextEditor(updateNetworkStatusBar),
+		item,
+		vscode.window.onDidChangeActiveTextEditor(update),
 		vscode.workspace.onDidChangeConfiguration((e) => {
 			if (e.affectsConfiguration('gno.networks') || e.affectsConfiguration('gno.network')) {
-				updateNetworkStatusBar();
+				update();
 			}
 		})
 	);
-	updateNetworkStatusBar();
-}
-
-function updateNetworkStatusBar() {
-	if (!statusBarItem) {
-		return;
-	}
-	const editor = vscode.window.activeTextEditor;
-	if (!editor || !isGoFile(editor.document)) {
-		statusBarItem.hide();
-		return;
-	}
-	const network = getSelectedNetwork();
-	if (network) {
-		statusBarItem.text = `$(globe) ${network.name}`;
-		statusBarItem.tooltip = `Gno network: ${network.remote} (chain ID ${network.chainId}). Click to change.`;
-		statusBarItem.backgroundColor = undefined;
-	} else {
-		statusBarItem.text = `$(globe) ${getGnoConfig().get<string>('network')}?`;
-		statusBarItem.tooltip = 'The selected network is not in gno.networks. Click to select another one.';
-		statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-	}
-	statusBarItem.show();
+	update();
 }

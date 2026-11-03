@@ -446,13 +446,13 @@
               "chainId": "dev"
             }
           },
-          "markdownDescription": "Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev. Select one with `#gno.network#` or the **Gno: Select Network** command.",
+          "markdownDescription": "Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev, and can be changed by defining `local` here. Select a network with `#gno.network#` or the **Gno: Select Network** command.",
           "scope": "window"
         },
         "gno.network": {
           "type": "string",
-          "default": "",
-          "markdownDescription": "Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. When empty, the first network is used.",
+          "default": "local",
+          "markdownDescription": "Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. The default `local` network is the node started by gnodev.",
           "scope": "window"
         },
         "gno.editorContextMenuCommands.addPackage": {

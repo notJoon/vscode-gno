@@ -3,7 +3,7 @@ import cp = require('child_process');
 import { CommandFactory } from './commands';
 import { getGnoConfig } from './config';
 import { toolExecutionEnvironment } from './gnoEnv';
-import { GnoNetwork, getSelectedNetwork, showUnknownNetworkError } from './gnoNetwork';
+import { GnoNetwork, requireSelectedNetwork } from './gnoNetwork';
 import { getBinPath } from './util';
 import { diagnosticsStatusBarItem, outputChannel } from './gnoStatus';
 
@@ -47,9 +47,8 @@ export function addPackage(): CommandFactory {
  */
 async function executeAddPackage(fileUri: vscode.Uri, goConfig: vscode.WorkspaceConfiguration): Promise<void> {
 	const rootDir = await getWorkspaceRootDir();
-	const network = getSelectedNetwork();
+	const network = requireSelectedNetwork();
 	if (!network) {
-		await showUnknownNetworkError();
 		return;
 	}
 
