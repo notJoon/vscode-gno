@@ -41,6 +41,10 @@ async function _testAtCursor(
 	if (!editor) {
 		throw new NotFoundError('No editor is active.');
 	}
+	if (editor.document.fileName.endsWith('_filetest.gno')) {
+		await editor.document.save();
+		return runFiletest(editor, goConfig, args);
+	}
 	if (!editor.document.fileName.endsWith('_test.gno')) {
 		throw new NotFoundError('No tests found. Current file is not a test file.');
 	}
@@ -124,6 +128,30 @@ async function runTestAtCursor(
 }
 
 /**
+ * Returns the package directory of a test file. gno also reads filetests from
+ * a `filetests` directory inside the package.
+ */
+function testPackageDir(fileName: string): string {
+	const dir = path.dirname(fileName);
+	return fileName.endsWith('_filetest.gno') && path.basename(dir) === 'filetests' ? path.dirname(dir) : dir;
+}
+
+/**
+ * Runs the filetest in the active editor. A filetest has no test functions, it
+ * runs its main function as a whole.
+ */
+function runFiletest(editor: vscode.TextEditor, goConfig: vscode.WorkspaceConfiguration, args: any) {
+	const testConfig: TestConfig = {
+		goConfig,
+		dir: testPackageDir(editor.document.fileName),
+		flags: getTestFlags(goConfig, args),
+		filetest: path.basename(editor.document.fileName)
+	};
+	lastTestConfig = testConfig;
+	return goTest(testConfig);
+}
+
+/**
  * Runs all tests in the package of the source of the active editor.
  *
  * @param goConfig Configuration for the Go extension.
@@ -139,7 +167,7 @@ export function testCurrentPackage(): CommandFactory {
 
 		const testConfig: TestConfig = {
 			goConfig,
-			dir: path.dirname(editor.document.fileName),
+			dir: testPackageDir(editor.document.fileName),
 			flags: getTestFlags(goConfig, args)
 		};
 		lastTestConfig = testConfig;
@@ -194,6 +222,10 @@ export function testCurrentFile(getConfig = getGnoConfig): CommandFactory {
 		if (!editor) {
 			vscode.window.showInformationMessage('No editor is active.');
 			return false;
+		}
+		if (editor.document.fileName.endsWith('_filetest.gno')) {
+			await editor.document.save();
+			return runFiletest(editor, goConfig, args);
 		}
 		if (!editor.document.fileName.endsWith('_test.gno')) {
 			vscode.window.showInformationMessage('No tests found. Current file is not a test file.');

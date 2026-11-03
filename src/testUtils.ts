@@ -8,10 +8,8 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  *--------------------------------------------------------*/
 import cp = require('child_process');
-import path = require('path');
 import util = require('util');
 import vscode = require('vscode');
-import fs = require('fs');
 
 import { toolExecutionEnvironment } from './gnoEnv';
 import { GoDocumentSymbolProvider } from './gnoDocumentSymbols';
@@ -20,6 +18,7 @@ import { parseEnvFile } from './utils/envUtils';
 import { getEnvPath } from './utils/pathUtils';
 import { killProcessTree } from './utils/processUtils';
 import { GoExtensionContext } from './context';
+import { gnoTestRunPattern } from './subTestUtils';
 
 const testOutputChannel = vscode.window.createOutputChannel('Gno Tests');
 const STATUS_BAR_ITEM_NAME = 'Gno Test Cancel';
@@ -60,6 +59,10 @@ export interface TestConfig {
 	 * Specific function names to test.
 	 */
 	functions?: string[];
+	/**
+	 * Base name of a `*_filetest.gno` file to run instead of test functions.
+	 */
+	filetest?: string;
 	/**
 	 * Test was not requested explicitly. The output should not appear in the UI.
 	 */
@@ -182,48 +185,31 @@ export async function goTest(testconfig: TestConfig): Promise<boolean> {
 
 	const testType = 'Tests';
 
-	// Construct the file path for testing
-	let testTarget: string;
-	if (testconfig.includeSubDirectories) {
-		testTarget = './...';
-	} else if (testconfig.functions && testconfig.functions.length > 0) {
-		const files: string[] = fs.readdirSync(testconfig.dir);
-		const testFile: string | undefined = files.find((f: string): boolean => f.endsWith('_test.gno'));
-		if (testFile) {
-			testTarget = path.join(testconfig.dir, testFile);
-		} else {
-			testTarget = testconfig.dir;
-		}
-	} else {
-		testTarget = testconfig.dir;
-	}
+	// gno test only takes package directories, so a file or function is
+	// selected with -run.
+	const testTarget = testconfig.includeSubDirectories ? './...' : '.';
 
 	const args = ['test'];
-	const outArgs = ['test'];
 
 	// Add timeout if specified
 	if (testconfig.goConfig['testTimeout'] !== '0s') {
 		args.push('-timeout', testconfig.goConfig['testTimeout']);
-		outArgs.push('-timeout', testconfig.goConfig['testTimeout']);
 	}
 
-	// Add test function filter if specified
-	if (testconfig.functions && testconfig.functions.length > 0) {
-		args.push('-run', testconfig.functions.join('|'));
-		outArgs.push('-run', testconfig.functions.join('|'));
+	const runPattern = gnoTestRunPattern(testconfig.functions, testconfig.filetest);
+	if (runPattern) {
+		args.push('-run', runPattern);
 	}
 
 	// Add the test target
 	args.push(testTarget);
-	outArgs.push(testTarget);
 
 	// Add any user specified flags
 	if (testconfig.flags) {
 		args.push(...testconfig.flags);
-		outArgs.push(...testconfig.flags);
 	}
 
-	outputChannel.appendLine(['Running tool:', goRuntimePath, ...outArgs].join(' '));
+	outputChannel.appendLine(['Running tool:', goRuntimePath, ...args].join(' '));
 	outputChannel.appendLine('');
 
 	let testResult = false;

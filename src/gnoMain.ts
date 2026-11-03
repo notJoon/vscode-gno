@@ -126,6 +126,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('gno.test.cursor', commands.testAtCursor('test'));
 	registerCommand('gno.test.cursorOrPrevious', commands.testAtCursorOrPrevious('test'));
 	registerCommand('gno.test.file', commands.testCurrentFile());
+	registerCommand('gno.test.package', commands.testCurrentPackage());
 	registerCommand('gno.test.workspace', commands.testWorkspace);
 	registerCommand('gno.test.previous', commands.testPrevious);
 	registerCommand('gno.test.showOutput', () => showTestOutput);

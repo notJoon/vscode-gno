@@ -27,3 +27,20 @@ export function escapeSubTestName(testFuncName: string, subTestName: string): st
 export function escapeRegExp(v: string) {
 	return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Builds the `gno test -run` pattern for a run of `gno test .` in the package
+ * directory. Test functions are matched by exact name. A filetest has no test
+ * function: gno names it `<dir>/<file>`, which is `./<file>` here, so the
+ * pattern matches the two elements and skips every `TestXxx`.
+ *
+ * @param functions Names of the test functions to run.
+ * @param filetest Base name of a `*_filetest.gno` file to run instead.
+ * @returns The pattern, or undefined to run all tests.
+ */
+export function gnoTestRunPattern(functions: string[] = [], filetest?: string): string | undefined {
+	if (filetest) {
+		return `^\\.$/^${escapeRegExp(filetest)}$`;
+	}
+	return functions.length > 0 ? `^(${functions.join('|')})$` : undefined;
+}
