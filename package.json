@@ -267,6 +267,11 @@
         "description": "Add a package to the Gno blockchain"
       },
       {
+        "command": "gno.network.select",
+        "title": "Gno: Select Network",
+        "description": "Select the network from gno.networks that Gno transactions and queries are sent to"
+      },
+      {
         "command": "gno.gnodev.start",
         "title": "Gno: Start gnodev",
         "description": "Start gnodev in the directory of the active file and open gnoweb",
@@ -414,6 +419,41 @@
           },
           "description": "Configuration for Gno blockchain transactions",
           "scope": "resource"
+        },
+        "gno.networks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "remote": {
+                "type": "string",
+                "description": "RPC address of a node of the network, such as `127.0.0.1:26657`."
+              },
+              "chainId": {
+                "type": "string",
+                "description": "Chain ID of the network, such as `dev`."
+              }
+            },
+            "required": [
+              "remote",
+              "chainId"
+            ],
+            "additionalProperties": false
+          },
+          "default": {
+            "local": {
+              "remote": "127.0.0.1:26657",
+              "chainId": "dev"
+            }
+          },
+          "markdownDescription": "Networks that Gno transactions and queries are sent to, by name. The default `local` network is the node started by gnodev, and can be changed by defining `local` here. Select a network with `#gno.network#` or the **Gno: Select Network** command.",
+          "scope": "window"
+        },
+        "gno.network": {
+          "type": "string",
+          "default": "local",
+          "markdownDescription": "Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. The default `local` network is the node started by gnodev.",
+          "scope": "window"
         },
         "gno.editorContextMenuCommands.addPackage": {
           "type": "boolean",

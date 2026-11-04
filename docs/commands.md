@@ -138,6 +138,12 @@ Restart the running instance of the language server
 
 Add a package to the Gno blockchain
 
+### Gno: Select Network
+
+#### `gno.network.select`
+
+Select the network from gno.networks that Gno transactions and queries are sent to
+
 ### Gno: Start gnodev
 
 #### `gno.gnodev.start`
