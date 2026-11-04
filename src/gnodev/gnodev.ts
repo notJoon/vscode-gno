@@ -30,6 +30,8 @@ interface GnodevServer {
 	ready?: boolean;
 	/** Render output shown in the panel, or to show once gnoweb is ready. */
 	preview?: RenderPreview;
+	/** Workspace or package directory that gnodev loads, if it found one. */
+	root: Promise<string | undefined>;
 }
 
 interface RenderPreview {
@@ -102,7 +104,7 @@ async function start(extensionUri: vscode.Uri, preview?: RenderPreview) {
 	output().info(`starting ${bin} ${args.join(' ')} in ${cwd}`);
 	const proc = cp.spawn(bin, args, { cwd, env: toolExecutionEnvironment() });
 	const exited = new Promise<void>((resolve) => proc.once('close', () => resolve()));
-	const current: GnodevServer = { process: proc, exited, preview };
+	const current: GnodevServer = { process: proc, exited, preview, root: loadRoot(cwd) };
 	server = current;
 	vscode.commands.executeCommand('setContext', RUNNING_CONTEXT, true);
 
@@ -247,26 +249,54 @@ function showPreview(extensionUri: vscode.Uri, s: GnodevServer, column?: vscode.
  * `dir` upward, or undefined if there is none or it is not a realm.
  */
 async function findRealm(dir: string): Promise<string | undefined> {
+	const modDir = await findUp(dir, 'gnomod.toml');
+	if (!modDir) {
+		return undefined;
+	}
+	try {
+		const module = findModuleName(await fs.promises.readFile(path.join(modDir, 'gnomod.toml'), 'utf8'));
+		return renderUrlPath(module, '') ? module : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Returns the closest directory to `dir` upward that has a file named `name`. */
+async function findUp(dir: string, name: string): Promise<string | undefined> {
 	for (;;) {
-		let content: string | undefined;
 		try {
-			content = await fs.promises.readFile(path.join(dir, 'gnomod.toml'), 'utf8');
+			await fs.promises.access(path.join(dir, name));
+			return dir;
 		} catch {
-			// No gnomod.toml in this directory.
-		}
-		if (content !== undefined) {
-			try {
-				const module = findModuleName(content);
-				return renderUrlPath(module, '') ? module : undefined;
-			} catch {
-				return undefined;
-			}
+			// No such file in this directory.
 		}
 		const parent = path.dirname(dir);
 		if (parent === dir) {
 			return undefined;
 		}
 		dir = parent;
+	}
+}
+
+/**
+ * Returns the directory that gnodev run in `cwd` loads: the workspace of the
+ * closest gnowork.toml upward, or else the package of the closest gnomod.toml.
+ */
+async function loadRoot(cwd: string): Promise<string | undefined> {
+	return (await findUp(cwd, 'gnowork.toml')) ?? findUp(cwd, 'gnomod.toml');
+}
+
+/** Warns when `file` is outside the workspace or package that gnodev loads. */
+async function warnIfNotLoaded(s: GnodevServer, file: vscode.Uri, module: string) {
+	// TODO: gnodev only loads the workspace or package it was started in, so
+	// gnoweb does not find a realm outside it. Restart gnodev for that realm, or
+	// make gnodev load it, instead of only warning.
+	const root = await s.root;
+	const rel = root && path.relative(root, file.fsPath);
+	if (rel !== undefined && (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel))) {
+		vscode.window.showWarningMessage(
+			`${module} is outside ${root}, which gnodev loads, so gnoweb may not find it. Restart gnodev from a file of ${module} to preview it.`
+		);
 	}
 }
 
@@ -305,13 +335,14 @@ export const previewRender: CommandFactory = (ctx) => async (args?: { path?: str
 		return;
 	}
 	server.preview = preview;
+	void warnIfNotLoaded(server, uri!, module);
 	if (server.externalUri) {
 		showPreview(
 			ctx.extensionUri,
 			server,
 			panelColumn(getGnoConfig(uri).get<string>('gnodev.openBrowser', 'beside'))
 		);
-	} else if (server.ready) {
+	} else if (server.ready && !server.addr) {
 		vscode.window.showErrorMessage('gnoweb is disabled. Remove -no-web from gno.gnodev.flags to preview Render.');
 	}
 	// Otherwise gnodev is starting, and shows the preview once ready.
@@ -353,6 +384,7 @@ export function setupRenderPreview(ctx: vscode.ExtensionContext) {
 			if (module && module !== s.preview.module && server === s && s.preview) {
 				s.preview = { module, path: '' };
 				showPreview(ctx.extensionUri, s);
+				void warnIfNotLoaded(s, editor.document.uri, module);
 			}
 		})
 	);
