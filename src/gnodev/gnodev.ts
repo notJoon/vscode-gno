@@ -1,13 +1,17 @@
 import vscode = require('vscode');
 import cp = require('child_process');
+import fs = require('fs');
 import path = require('path');
 import readline = require('readline');
 import { CommandFactory } from '../commands';
 import { getGnoConfig } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
+import { GO_MODE } from '../gnoMode';
+import { findModuleName } from '../gnoTest/utils';
 import { getBinPath, getWorkspaceFolderPath } from '../util';
 import { killProcessTree } from '../utils/processUtils';
 import { GnodevLog, gnowebAddress, parseGnodevLog } from './logs';
+import { renderUrlPath } from './render';
 
 const RUNNING_CONTEXT = 'gno.gnodev.running';
 const VIEW_TYPE = 'gno.gnodev';
@@ -22,6 +26,17 @@ interface GnodevServer {
 	/** gnoweb address reachable from the UI, which differs in remote setups. */
 	externalUri?: vscode.Uri;
 	panel?: vscode.WebviewPanel;
+	/** Set once the node is ready, with or without gnoweb. */
+	ready?: boolean;
+	/** Render output shown in the panel, or to show once gnoweb is ready. */
+	preview?: RenderPreview;
+}
+
+interface RenderPreview {
+	/** Module path of the realm, such as `gno.land/r/demo/foo`. */
+	module: string;
+	/** The path argument of `Render`. */
+	path: string;
 }
 
 let server: GnodevServer | undefined;
@@ -55,7 +70,16 @@ function writeLog(log: GnodevLog) {
  * upward, so this loads the package or workspace of the file as running gnodev
  * there in a terminal would. Without a file, it runs in the workspace folder.
  */
-export const startGnodev: CommandFactory = (ctx) => async () => {
+export const startGnodev: CommandFactory = (ctx) => () => start(ctx.extensionUri);
+
+/** Returns the URI of the active editor, or of a visible Gno editor when a webview has focus. */
+function gnoEditorUri(): vscode.Uri | undefined {
+	const editor =
+		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
+	return editor?.document.uri;
+}
+
+async function start(extensionUri: vscode.Uri, preview?: RenderPreview) {
 	// Wait for the previous gnodev to release its ports. Loop as another start
 	// may have spawned or stopped one meanwhile.
 	let exit: Promise<void>;
@@ -64,9 +88,7 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 		await exit;
 	} while (server || exit !== lastExit);
 
-	const editor =
-		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
-	const uri = editor?.document.uri;
+	const uri = gnoEditorUri();
 	const cwd = uri?.scheme === 'file' ? path.dirname(uri.fsPath) : getWorkspaceFolderPath(uri);
 	if (!cwd) {
 		vscode.window.showErrorMessage('Open a Gno file or a workspace folder to start gnodev.');
@@ -80,7 +102,7 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 	output().info(`starting ${bin} ${args.join(' ')} in ${cwd}`);
 	const proc = cp.spawn(bin, args, { cwd, env: toolExecutionEnvironment() });
 	const exited = new Promise<void>((resolve) => proc.once('close', () => resolve()));
-	const current: GnodevServer = { process: proc, exited };
+	const current: GnodevServer = { process: proc, exited, preview };
 	server = current;
 	vscode.commands.executeCommand('setContext', RUNNING_CONTEXT, true);
 
@@ -101,7 +123,7 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 			// gnodev logs "gnoweb started" and "node is ready" before gnoweb listens,
 			// and exits right after when listening fails, such as on a port in use.
 			// Wait a moment so that only the error is shown then.
-			setTimeout(() => server === current && onReady(ctx.extensionUri, current, openBrowser), READY_DELAY_MS);
+			setTimeout(() => server === current && onReady(extensionUri, current, openBrowser), READY_DELAY_MS);
 		}
 	});
 	readline.createInterface({ input: proc.stderr }).on('line', (line) => {
@@ -134,9 +156,10 @@ export const startGnodev: CommandFactory = (ctx) => async () => {
 		const status = signal ? `was stopped by ${signal}` : `exited with code ${code}`;
 		onEnd(`gnodev ${status}${code && lastError ? `: ${lastError}` : ''}`, code !== 0);
 	});
-};
+}
 
 async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: string) {
+	s.ready = true;
 	// gnoweb is started before the node is ready, so no address means `-no-web`.
 	if (!s.addr) {
 		vscode.window.showInformationMessage('gnodev is ready. gnoweb is disabled.');
@@ -148,20 +171,40 @@ async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: s
 	}
 	s.externalUri = externalUri;
 	vscode.window.showInformationMessage(`gnodev started at ${s.addr}`);
-	if (openBrowser === 'external') {
+	if (s.preview) {
+		showPreview(extensionUri, s, panelColumn(openBrowser));
+	} else if (openBrowser === 'external') {
 		vscode.env.openExternal(externalUri);
 	} else if (openBrowser !== 'none') {
-		const column = openBrowser === 'current' ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
-		showPanel(extensionUri, s, externalUri.toString(), column);
+		showPanel(extensionUri, s, externalUri.toString(), panelColumn(openBrowser));
 	}
 }
 
-function showPanel(extensionUri: vscode.Uri, s: GnodevServer, url: string, column: vscode.ViewColumn) {
+function panelColumn(openBrowser: string): vscode.ViewColumn {
+	return openBrowser === 'current' ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
+}
+
+/**
+ * Shows gnoweb in the panel, revealing it in `column` if given. A preview
+ * reveals it without taking the focus, so that editing can go on.
+ */
+function showPanel(
+	extensionUri: vscode.Uri,
+	s: GnodevServer,
+	url: string,
+	column?: vscode.ViewColumn,
+	preserveFocus = false
+) {
 	if (!s.panel) {
-		s.panel = vscode.window.createWebviewPanel(VIEW_TYPE, 'gnodev', column, {
-			enableScripts: true,
-			retainContextWhenHidden: true
-		});
+		s.panel = vscode.window.createWebviewPanel(
+			VIEW_TYPE,
+			'gnodev',
+			{ viewColumn: column ?? vscode.ViewColumn.Beside, preserveFocus },
+			{
+				enableScripts: true,
+				retainContextWhenHidden: true
+			}
+		);
 		s.panel.iconPath = {
 			light: vscode.Uri.joinPath(extensionUri, 'media', 'gno-icon-light.png'),
 			dark: vscode.Uri.joinPath(extensionUri, 'media', 'gno-icon-dark.png')
@@ -186,7 +229,133 @@ function showPanel(extensionUri: vscode.Uri, s: GnodevServer, url: string, colum
 	<iframe src="${url}" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
 </body>
 </html>`;
-	s.panel.reveal(column);
+	if (column !== undefined) {
+		s.panel.reveal(column, preserveFocus);
+	}
+}
+
+function showPreview(extensionUri: vscode.Uri, s: GnodevServer, column?: vscode.ViewColumn) {
+	if (!s.externalUri || !s.preview) {
+		return;
+	}
+	const urlPath = renderUrlPath(s.preview.module, s.preview.path) ?? '';
+	showPanel(extensionUri, s, s.externalUri.toString().replace(/\/$/, '') + urlPath, column, true);
+}
+
+/**
+ * Returns the module path of the realm whose gnomod.toml is the closest to
+ * `dir` upward, or undefined if there is none or it is not a realm.
+ */
+async function findRealm(dir: string): Promise<string | undefined> {
+	for (;;) {
+		let content: string | undefined;
+		try {
+			content = await fs.promises.readFile(path.join(dir, 'gnomod.toml'), 'utf8');
+		} catch {
+			// No gnomod.toml in this directory.
+		}
+		if (content !== undefined) {
+			try {
+				const module = findModuleName(content);
+				return renderUrlPath(module, '') ? module : undefined;
+			} catch {
+				return undefined;
+			}
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) {
+			return undefined;
+		}
+		dir = parent;
+	}
+}
+
+async function editorRealm(uri: vscode.Uri | undefined): Promise<string | undefined> {
+	return uri?.scheme === 'file' ? findRealm(path.dirname(uri.fsPath)) : undefined;
+}
+
+/**
+ * Previews the `Render` output of the realm of the active file in the gnodev
+ * panel, starting gnodev if it is not running. Without a `path` argument, the
+ * path passed to `Render` is asked for.
+ */
+export const previewRender: CommandFactory = (ctx) => async (args?: { path?: string }) => {
+	const uri = gnoEditorUri();
+	const module = await editorRealm(uri);
+	if (!module) {
+		vscode.window.showErrorMessage(
+			'Open a file of a realm, a package whose gnomod.toml module path has /r/, to preview its Render output.'
+		);
+		return;
+	}
+	let renderPath = args?.path;
+	if (renderPath === undefined) {
+		renderPath = await vscode.window.showInputBox({
+			title: `Preview Render of ${module}`,
+			prompt: 'The path argument of Render, such as foo/bar. Leave empty for the realm home page.',
+			value: server?.preview?.module === module ? server.preview.path : ''
+		});
+		if (renderPath === undefined) {
+			return;
+		}
+	}
+	const preview = { module, path: renderPath.trim() };
+	if (!server) {
+		await start(ctx.extensionUri, preview);
+		return;
+	}
+	server.preview = preview;
+	if (server.externalUri) {
+		showPreview(
+			ctx.extensionUri,
+			server,
+			panelColumn(getGnoConfig(uri).get<string>('gnodev.openBrowser', 'beside'))
+		);
+	} else if (server.ready) {
+		vscode.window.showErrorMessage('gnoweb is disabled. Remove -no-web from gno.gnodev.flags to preview Render.');
+	}
+	// Otherwise gnodev is starting, and shows the preview once ready.
+};
+
+/**
+ * Registers the code lens on `func Render(` of realms, and makes the preview
+ * follow the active editor to the realm of its file.
+ */
+export function setupRenderPreview(ctx: vscode.ExtensionContext) {
+	ctx.subscriptions.push(
+		vscode.languages.registerCodeLensProvider(GO_MODE, {
+			async provideCodeLenses(document) {
+				const codeLens = getGnoConfig(document.uri).get<{ render?: boolean }>('enableCodeLens');
+				if (codeLens?.render === false || /_(file)?test\.gno$/.test(document.fileName)) {
+					return [];
+				}
+				const match = /^func Render\(/m.exec(document.getText());
+				if (!match || !(await editorRealm(document.uri))) {
+					return [];
+				}
+				const range = document.lineAt(document.positionAt(match.index).line).range;
+				return [
+					new vscode.CodeLens(range, {
+						title: 'preview render',
+						command: 'gno.render.preview',
+						arguments: [{ path: '' }]
+					}),
+					new vscode.CodeLens(range, { title: 'preview render path...', command: 'gno.render.preview' })
+				];
+			}
+		}),
+		vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+			const s = server;
+			if (!s?.panel || !s.preview || editor?.document.languageId !== 'gno') {
+				return;
+			}
+			const module = await editorRealm(editor.document.uri);
+			if (module && module !== s.preview.module && server === s && s.preview) {
+				s.preview = { module, path: '' };
+				showPreview(ctx.extensionUri, s);
+			}
+		})
+	);
 }
 
 /**

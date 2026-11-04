@@ -28,7 +28,15 @@ import * as goGenerateTests from './gnoGenerateTests';
 import { GO111MODULE, goModInit } from './gnoModules';
 import { GoRunTestCodeLensProvider } from './gnoRunTestCodelens';
 import { disposeGoStatusBar, expandGoStatusBar, updateGoStatusBar } from './gnoStatus';
-import { openGnodevExternal, reloadGnodev, resetGnodev, startGnodev, stopGnodev } from './gnodev/gnodev';
+import {
+	openGnodevExternal,
+	previewRender,
+	reloadGnodev,
+	resetGnodev,
+	setupRenderPreview,
+	startGnodev,
+	stopGnodev
+} from './gnodev/gnodev';
 import { selectNetwork, setupNetworkStatusBar } from './gnoNetwork';
 import {
 	getFromGlobalState,
@@ -145,6 +153,8 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('gno.gnodev.reload', reloadGnodev);
 	registerCommand('gno.gnodev.reset', resetGnodev);
 	registerCommand('gno.gnodev.openExternal', openGnodevExternal);
+	registerCommand('gno.render.preview', previewRender);
+	setupRenderPreview(ctx);
 
 	if (isVscodeTestingAPIAvailable && cfg.get<boolean>('testExplorer.enable')) {
 		GoTestExplorer.setup(ctx, goCtx);
