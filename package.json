@@ -300,6 +300,12 @@
         "title": "Gno: Open gnoweb in Browser",
         "description": "Open the gnoweb served by gnodev in the external browser",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "gno.render.preview",
+        "title": "Gno: Preview Render",
+        "description": "Preview the Render output of the realm of the active file in gnoweb, starting gnodev if needed",
+        "icon": "$(open-preview)"
       }
     ],
     "breakpoints": [
@@ -685,11 +691,17 @@
               "type": "boolean",
               "default": true,
               "description": "If true, enables code lens for running and debugging tests"
+            },
+            "render": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, enables code lens for previewing the Render output of realms"
             }
           },
           "additionalProperties": false,
           "default": {
-            "runtest": true
+            "runtest": true,
+            "render": true
           },
           "description": "Feature level setting to enable/disable code lens for references and run/debug tests",
           "scope": "resource"
@@ -1351,6 +1363,10 @@
         {
           "command": "gno.gnodev.openExternal",
           "when": "gno.gnodev.running"
+        },
+        {
+          "command": "gno.render.preview",
+          "when": "resourceLangId == gno"
         }
       ],
       "editor/context": [
