@@ -11,7 +11,7 @@ import { findModuleName } from '../gnoTest/utils';
 import { getBinPath, getWorkspaceFolderPath } from '../util';
 import { killProcessTree } from '../utils/processUtils';
 import { GnodevLog, gnowebAddress, parseGnodevLog } from './logs';
-import { renderUrlPath } from './render';
+import { packagePath, renderUrlPath } from './render';
 
 const RUNNING_CONTEXT = 'gno.gnodev.running';
 const VIEW_TYPE = 'gno.gnodev';
@@ -245,8 +245,9 @@ function showPreview(extensionUri: vscode.Uri, s: GnodevServer, column?: vscode.
 }
 
 /**
- * Returns the module path of the realm whose gnomod.toml is the closest to
- * `dir` upward, or undefined if there is none or it is not a realm.
+ * Returns the package path of the realm in `dir`, the module path of the
+ * closest gnomod.toml upward joined with the path of `dir` below it, or
+ * undefined if there is none or it is not a realm.
  */
 async function findRealm(dir: string): Promise<string | undefined> {
 	const modDir = await findUp(dir, 'gnomod.toml');
@@ -255,7 +256,8 @@ async function findRealm(dir: string): Promise<string | undefined> {
 	}
 	try {
 		const module = findModuleName(await fs.promises.readFile(path.join(modDir, 'gnomod.toml'), 'utf8'));
-		return renderUrlPath(module, '') ? module : undefined;
+		const pkgPath = packagePath(module, path.relative(modDir, dir));
+		return renderUrlPath(pkgPath, '') ? pkgPath : undefined;
 	} catch {
 		return undefined;
 	}

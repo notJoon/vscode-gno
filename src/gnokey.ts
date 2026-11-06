@@ -17,6 +17,8 @@ export function runGnokey(args: string[], cwd: string | undefined, password?: st
 		let stderr = '';
 		child.stdout.on('data', (d) => (stdout += d));
 		child.stderr.on('data', (d) => (stderr += d));
+		// gnokey can exit before reading stdin, such as on a bad flag.
+		child.stdin.on('error', () => undefined);
 		child.stdin.end(password === undefined ? '' : `${password}\n`);
 		child.on('error', (err) => reject(new Error(`gnokey failed: ${err.message}`)));
 		child.on('close', (code) => {
