@@ -481,11 +481,6 @@
           "markdownDescription": "Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. The default `local` network is the node started by gnodev.",
           "scope": "window"
         },
-        "gno.editorContextMenuCommands.addPackage": {
-          "type": "boolean",
-          "default": true,
-          "description": "If true, adds command to add package to the Gno blockchain to the editor context menu"
-        },
         "gno.disableConcurrentTests": {
           "type": "boolean",
           "default": false,
@@ -755,6 +750,11 @@
               "default": true,
               "description": "If true, adds command to import a package to the editor context menu"
             },
+            "addPackage": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, adds command to add package to the Gno blockchain to the editor context menu"
+            },
             "realm": {
               "type": "boolean",
               "default": true,
@@ -767,6 +767,7 @@
             "testAtCursor": true,
             "testFile": false,
             "addImport": true,
+            "addPackage": true,
             "realm": true
           },
           "description": "Experimental Feature: Enable/Disable entries from the context menu in the editor.",

@@ -38,14 +38,8 @@ Experimental Feature: Enable/Disable entries from the context menu in the editor
 
 Default:
 ```
-map[addImport:true fillStruct:false realm:true testAtCursor:true testFile:false]
+map[addImport:true addPackage:true fillStruct:false realm:true testAtCursor:true testFile:false]
 ```
-
-### `gno.editorContextMenuCommands.addPackage`
-
-If true, adds command to add package to the Gno blockchain to the editor context menu
-
-Default: `true`
 
 ### `gno.enableCodeLens`
 

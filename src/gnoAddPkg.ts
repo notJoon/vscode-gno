@@ -31,7 +31,7 @@ export function addPackage(): CommandFactory {
 			await executeAddPackage(documentUri, goConfig);
 			diagnosticsStatusBarItem.hide();
 		} catch (err) {
-			vscode.window.showInformationMessage('Error: ' + err);
+			vscode.window.showErrorMessage(`Add package failed: ${(err as Error).message}`);
 			diagnosticsStatusBarItem.text = 'Add Package Failed';
 		}
 	};

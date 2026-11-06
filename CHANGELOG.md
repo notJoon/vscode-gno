@@ -11,7 +11,8 @@
 ### Bug Fixes
 
 * Gno Add Package To Chain failed with current gnokey, which has no `-deposit` flag. Coins sent with the package are now set with `-send`, and are optional ([#12](https://github.com/notJoon/vscode-gno/pull/12))
-* Gno Add Package To Chain shows why a deploy failed, such as `package already exists`, instead of only the exit code ([#7](https://github.com/notJoon/vscode-gno/issues/7))
+* Gno Add Package To Chain shows why a deploy failed, such as `package already exists`, as an error instead of an information message with the exit code ([#7](https://github.com/notJoon/vscode-gno/issues/7))
+* the Gno Add Package To Chain editor context menu entry never showed, as `gno.editorContextMenuCommands.addPackage` was shadowed by the `gno.editorContextMenuCommands` object. It is now a property of that object ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 
 ## 1.0.2 (2026-11-03)
 
