@@ -3,80 +3,36 @@ import fs = require('fs');
 import path = require('path');
 import { CommandFactory } from './commands';
 import { getGnoConfig } from './config';
-import { GnoNetwork, requireSelectedNetwork } from './gnoNetwork';
+import { requireSelectedNetwork } from './gnoNetwork';
 import { GO_MODE } from './gnoMode';
-import { CrossingFunc, crossingFuncs } from './gnoRealmFuncs';
-import { runGnokey } from './gnokey';
+import { CrossingFunc, crossingFuncs, isGnoTestFile } from './gnoRealmFuncs';
+import { askSigner, nonEmpty, runGnokey, txFlags } from './gnokey';
 import { outputChannel } from './gnoStatus';
-import { editorRealm } from './gnodev/gnodev';
+import { editorRealm, gnoEditorUri } from './gnodev/gnodev';
 
-/** The key name last used to sign, offered again by the next transaction. */
-let lastKey = '';
 let lastEval = '';
 
 /** Runs gnokey with a progress notification, and shows its output or error. */
-async function runWithProgress(title: string, args: string[], cwd?: string, password?: string) {
+async function runWithProgress(title: string, args: string[], password?: string) {
 	outputChannel.show(true);
 	try {
 		await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, () =>
-			runGnokey(args, cwd, password)
+			runGnokey(args, { password })
 		);
 	} catch (err) {
 		vscode.window.showErrorMessage(`${title} failed: ${(err as Error).message}`);
 	}
 }
 
-/** Returns the realm module path of the active Gno file, or shows an error. */
-async function activeRealm(): Promise<{ editor: vscode.TextEditor; module: string } | undefined> {
-	const editor = vscode.window.activeTextEditor;
-	const module = editor?.document.languageId === 'gno' ? await editorRealm(editor.document.uri) : undefined;
-	if (!editor || !module) {
+/** Returns the realm package path of the active Gno file, or shows an error. */
+async function activeRealm(): Promise<{ uri: vscode.Uri; module: string } | undefined> {
+	const uri = gnoEditorUri();
+	const module = await editorRealm(uri);
+	if (!uri || !module) {
 		vscode.window.showErrorMessage('Open a file of a realm, a package whose gnomod.toml module path has /r/.');
 		return undefined;
 	}
-	return { editor, module };
-}
-
-/**
- * Asks for the key that signs the transaction and its password, or returns
- * undefined when canceled.
- */
-async function askSigner(title: string): Promise<{ key: string; password: string } | undefined> {
-	const key = await vscode.window.showInputBox({
-		title,
-		prompt: 'Key name or address in gnokey that signs the transaction',
-		value: lastKey,
-		validateInput: (v) => (v.trim() ? null : 'should not be empty')
-	});
-	if (key === undefined) {
-		return undefined;
-	}
-	const password = await vscode.window.showInputBox({ title, prompt: `Password of ${key}`, password: true });
-	if (password === undefined) {
-		return undefined;
-	}
-	lastKey = key.trim();
-	return { key: lastKey, password };
-}
-
-/** Returns the gnokey flags that sign and send a transaction to `network`. */
-function txFlags(network: GnoNetwork, uri: vscode.Uri): string[] {
-	const config = getGnoConfig(uri).get<{ broadcast?: boolean; gasFee?: string; gasWanted?: string }>('makeTx');
-	const flags = [
-		'-gas-fee',
-		config?.gasFee ?? '1000000ugnot',
-		'-gas-wanted',
-		config?.gasWanted ?? '2000000',
-		'-remote',
-		network.remote,
-		'-chainid',
-		network.chainId,
-		'-insecure-password-stdin'
-	];
-	if (config?.broadcast ?? true) {
-		flags.push('-broadcast');
-	}
-	return flags;
+	return { uri, module };
 }
 
 /**
@@ -85,9 +41,7 @@ function txFlags(network: GnoNetwork, uri: vscode.Uri): string[] {
  */
 async function packageFuncs(uri: vscode.Uri): Promise<(CrossingFunc & { file: string })[]> {
 	const dir = path.dirname(uri.fsPath);
-	const files = (await fs.promises.readdir(dir))
-		.filter((f) => f.endsWith('.gno') && !/_(file)?test\.gno$/.test(f))
-		.sort();
+	const files = (await fs.promises.readdir(dir)).filter((f) => f.endsWith('.gno') && !isGnoTestFile(f)).sort();
 	const funcs = await Promise.all(
 		files.map(async (file) => {
 			const full = path.join(dir, file);
@@ -97,6 +51,23 @@ async function packageFuncs(uri: vscode.Uri): Promise<(CrossingFunc & { file: st
 		})
 	);
 	return funcs.flat();
+}
+
+/** Asks which of `funcs` of realm `module` to call, or shows an error when there is none. */
+async function pickFunc(funcs: (CrossingFunc & { file: string })[], module: string) {
+	if (!funcs.length) {
+		vscode.window.showErrorMessage(`${module} has no exported crossing function, func F(cur realm, ...).`);
+		return undefined;
+	}
+	const picked = await vscode.window.showQuickPick(
+		funcs.map((f) => ({
+			label: f.name,
+			description: `(${f.params.map((p) => `${p.name} ${p.type}`).join(', ')}) in ${f.file}`,
+			func: f
+		})),
+		{ placeHolder: `Function of ${module} to call` }
+	);
+	return picked?.func;
 }
 
 /**
@@ -109,31 +80,10 @@ export const callRealmFunction: CommandFactory = () => async (args?: { func?: st
 	if (!realm) {
 		return;
 	}
-	const funcs = await packageFuncs(realm.editor.document.uri);
-	let func: CrossingFunc | undefined = funcs.find((f) => f.name === args?.func);
-	if (!func) {
-		if (!funcs.length) {
-			vscode.window.showErrorMessage(
-				`${realm.module} has no exported crossing function, func F(cur realm, ...).`
-			);
-			return;
-		}
-		func = (
-			await vscode.window.showQuickPick(
-				funcs.map((f) => ({
-					label: f.name,
-					description: `(${f.params.map((p) => `${p.name} ${p.type}`).join(', ')}) in ${f.file}`,
-					func: f
-				})),
-				{ placeHolder: `Function of ${realm.module} to call` }
-			)
-		)?.func;
-		if (!func) {
-			return;
-		}
-	}
-	const network = requireSelectedNetwork();
-	if (!network) {
+	const funcs = await packageFuncs(realm.uri);
+	const func = funcs.find((f) => f.name === args?.func) ?? (await pickFunc(funcs, realm.module));
+	const network = func && requireSelectedNetwork();
+	if (!func || !network) {
 		return;
 	}
 
@@ -150,10 +100,7 @@ export const callRealmFunction: CommandFactory = () => async (args?: { func?: st
 		title,
 		prompt: 'Coins to send with the call, such as 1000000ugnot (optional)'
 	});
-	if (send === undefined) {
-		return;
-	}
-	const signer = await askSigner(title);
+	const signer = send !== undefined && (await askSigner(title));
 	if (!signer) {
 		return;
 	}
@@ -168,11 +115,10 @@ export const callRealmFunction: CommandFactory = () => async (args?: { func?: st
 			'-func',
 			func.name,
 			...callArgs,
-			...(send.trim() ? ['-send', send.trim()] : []),
-			...txFlags(network, realm.editor.document.uri),
+			...(send?.trim() ? ['-send', send.trim()] : []),
+			...txFlags(network, realm.uri),
 			signer.key
 		],
-		path.dirname(realm.editor.document.uri.fsPath),
 		signer.password
 	);
 };
@@ -194,63 +140,48 @@ export const runScript: CommandFactory = () => async () => {
 	if (!signer || !(await doc.save())) {
 		return;
 	}
-	await runWithProgress(
-		title,
-		['maketx', 'run', ...txFlags(network, doc.uri), signer.key, file],
-		path.dirname(file),
-		signer.password
-	);
+	await runWithProgress(title, ['maketx', 'run', ...txFlags(network, doc.uri), signer.key, file], signer.password);
 };
 
-/** Evaluates an expression in the realm of the active file with `vm/qeval`. */
-export const evalRealm: CommandFactory = () => async () => {
+/**
+ * Asks for the input of a query of the realm of the active file, and sends
+ * `query` with data `<realm><sep><input>`.
+ */
+async function queryRealm(
+	query: string,
+	sep: string,
+	title: string,
+	input: vscode.InputBoxOptions
+): Promise<string | undefined> {
 	const realm = await activeRealm();
 	const network = realm && requireSelectedNetwork();
 	if (!realm || !network) {
-		return;
+		return undefined;
 	}
-	const expr = await vscode.window.showInputBox({
-		title: `Evaluate in ${realm.module} on ${network.name}`,
-		prompt: 'Expression, such as Counter() or Render("")',
-		value: lastEval,
-		validateInput: (v) => (v.trim() ? null : 'should not be empty')
-	});
-	if (expr === undefined) {
-		return;
+	const value = await vscode.window.showInputBox({ ...input, title: `${title} ${realm.module} on ${network.name}` });
+	if (value === undefined) {
+		return undefined;
 	}
-	lastEval = expr.trim();
-	await runWithProgress(`Evaluate ${realm.module}.${lastEval}`, [
-		'query',
-		'vm/qeval',
-		'-data',
-		`${realm.module}.${lastEval}`,
-		'-remote',
-		network.remote
-	]);
+	const data = `${realm.module}${sep}${value.trim()}`;
+	await runWithProgress(`${title} ${data}`, ['query', query, '-data', data, '-remote', network.remote]);
+	return value.trim();
+}
+
+/** Evaluates an expression in the realm of the active file with `vm/qeval`. */
+export const evalRealm: CommandFactory = () => async () => {
+	lastEval =
+		(await queryRealm('vm/qeval', '.', 'Evaluate in', {
+			prompt: 'Expression, such as Counter() or Render("")',
+			value: lastEval,
+			validateInput: nonEmpty
+		})) ?? lastEval;
 };
 
 /** Shows the Render output of the realm of the active file with `vm/qrender`. */
 export const queryRender: CommandFactory = () => async () => {
-	const realm = await activeRealm();
-	const network = realm && requireSelectedNetwork();
-	if (!realm || !network) {
-		return;
-	}
-	const renderPath = await vscode.window.showInputBox({
-		title: `Query Render of ${realm.module} on ${network.name}`,
+	await queryRealm('vm/qrender', ':', 'Query Render of', {
 		prompt: 'Path passed to Render, empty for the realm home'
 	});
-	if (renderPath === undefined) {
-		return;
-	}
-	await runWithProgress(`Render ${realm.module}:${renderPath}`, [
-		'query',
-		'vm/qrender',
-		'-data',
-		`${realm.module}:${renderPath}`,
-		'-remote',
-		network.remote
-	]);
 };
 
 /** Registers the code lens that calls exported crossing functions of realms. */
@@ -259,7 +190,7 @@ export function setupCallCodeLens(ctx: vscode.ExtensionContext) {
 		vscode.languages.registerCodeLensProvider(GO_MODE, {
 			async provideCodeLenses(document) {
 				const codeLens = getGnoConfig(document.uri).get<{ call?: boolean }>('enableCodeLens');
-				if (codeLens?.call === false || /_(file)?test\.gno$/.test(document.fileName)) {
+				if (codeLens?.call === false || isGnoTestFile(document.fileName)) {
 					return [];
 				}
 				const funcs = crossingFuncs(document.getText());

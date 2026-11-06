@@ -35,7 +35,6 @@ suite('realm crossing functions', () => {
 
 	test('gnokey errors', () => {
 		const tx = [
-			'Enter password.',
 			'--= Error =--',
 			'Data: internal error',
 			'Msg Traces:',
@@ -58,6 +57,6 @@ suite('realm crossing functions', () => {
 			'    0  gno/tm2/pkg/errors/errors.go:93'
 		].join('\n');
 		assert.strictEqual(gnokeyError(nested), 'package already exists: gno.land/r/demo/foo');
-		assert.strictEqual(gnokeyError('Enter password.\n'), undefined);
+		assert.strictEqual(gnokeyError('\n'), undefined);
 	});
 });

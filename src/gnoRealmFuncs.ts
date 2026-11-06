@@ -42,9 +42,14 @@ function parseParams(list: string): { name: string; type: string }[] {
 /**
  * Returns the cause of a gnokey failure from its stderr: the last message
  * trace of a transaction error, which is the innermost when errors are
- * nested, or else the first line that is not the password prompt.
+ * nested, or else its first line.
  */
 export function gnokeyError(stderr: string): string | undefined {
 	const trace = [...stderr.matchAll(/^\s*\d+\s+\S+ - (.+)$/gm)].pop()?.[1];
-	return trace ?? stderr.split('\n').find((l) => l.trim() && !l.startsWith('Enter password'));
+	return trace ?? stderr.split('\n').find((l) => l.trim());
+}
+
+/** Reports whether `fileName` is a Gno test or filetest. */
+export function isGnoTestFile(fileName: string): boolean {
+	return /_(file)?test\.gno$/.test(fileName);
 }

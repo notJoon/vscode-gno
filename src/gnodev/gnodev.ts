@@ -7,6 +7,7 @@ import { CommandFactory } from '../commands';
 import { getGnoConfig } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
 import { GO_MODE } from '../gnoMode';
+import { isGnoTestFile } from '../gnoRealmFuncs';
 import { findModuleName } from '../gnoTest/utils';
 import { getBinPath, getWorkspaceFolderPath } from '../util';
 import { killProcessTree } from '../utils/processUtils';
@@ -75,7 +76,7 @@ function writeLog(log: GnodevLog) {
 export const startGnodev: CommandFactory = (ctx) => () => start(ctx.extensionUri);
 
 /** Returns the URI of the active editor, or of a visible Gno editor when a webview has focus. */
-function gnoEditorUri(): vscode.Uri | undefined {
+export function gnoEditorUri(): vscode.Uri | undefined {
 	const editor =
 		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
 	return editor?.document.uri;
@@ -359,7 +360,7 @@ export function setupRenderPreview(ctx: vscode.ExtensionContext) {
 		vscode.languages.registerCodeLensProvider(GO_MODE, {
 			async provideCodeLenses(document) {
 				const codeLens = getGnoConfig(document.uri).get<{ render?: boolean }>('enableCodeLens');
-				if (codeLens?.render === false || /_(file)?test\.gno$/.test(document.fileName)) {
+				if (codeLens?.render === false || isGnoTestFile(document.fileName)) {
 					return [];
 				}
 				const match = /^func Render\(/m.exec(document.getText());
