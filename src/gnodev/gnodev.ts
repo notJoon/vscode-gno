@@ -7,11 +7,12 @@ import { CommandFactory } from '../commands';
 import { getGnoConfig } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
 import { GO_MODE } from '../gnoMode';
+import { isGnoTestFile } from '../gnoRealmFuncs';
 import { findModuleName } from '../gnoTest/utils';
 import { getBinPath, getWorkspaceFolderPath } from '../util';
 import { killProcessTree } from '../utils/processUtils';
 import { GnodevLog, gnowebAddress, parseGnodevLog } from './logs';
-import { renderUrlPath } from './render';
+import { packagePath, renderUrlPath } from './render';
 
 const RUNNING_CONTEXT = 'gno.gnodev.running';
 const VIEW_TYPE = 'gno.gnodev';
@@ -75,7 +76,7 @@ function writeLog(log: GnodevLog) {
 export const startGnodev: CommandFactory = (ctx) => () => start(ctx.extensionUri);
 
 /** Returns the URI of the active editor, or of a visible Gno editor when a webview has focus. */
-function gnoEditorUri(): vscode.Uri | undefined {
+export function gnoEditorUri(): vscode.Uri | undefined {
 	const editor =
 		vscode.window.activeTextEditor ?? vscode.window.visibleTextEditors.find((e) => e.document.languageId === 'gno');
 	return editor?.document.uri;
@@ -245,8 +246,9 @@ function showPreview(extensionUri: vscode.Uri, s: GnodevServer, column?: vscode.
 }
 
 /**
- * Returns the module path of the realm whose gnomod.toml is the closest to
- * `dir` upward, or undefined if there is none or it is not a realm.
+ * Returns the package path of the realm in `dir`, the module path of the
+ * closest gnomod.toml upward joined with the path of `dir` below it, or
+ * undefined if there is none or it is not a realm.
  */
 async function findRealm(dir: string): Promise<string | undefined> {
 	const modDir = await findUp(dir, 'gnomod.toml');
@@ -255,7 +257,8 @@ async function findRealm(dir: string): Promise<string | undefined> {
 	}
 	try {
 		const module = findModuleName(await fs.promises.readFile(path.join(modDir, 'gnomod.toml'), 'utf8'));
-		return renderUrlPath(module, '') ? module : undefined;
+		const pkgPath = packagePath(module, path.relative(modDir, dir));
+		return renderUrlPath(pkgPath, '') ? pkgPath : undefined;
 	} catch {
 		return undefined;
 	}
@@ -300,7 +303,7 @@ async function warnIfNotLoaded(s: GnodevServer, file: vscode.Uri, module: string
 	}
 }
 
-async function editorRealm(uri: vscode.Uri | undefined): Promise<string | undefined> {
+export async function editorRealm(uri: vscode.Uri | undefined): Promise<string | undefined> {
 	return uri?.scheme === 'file' ? findRealm(path.dirname(uri.fsPath)) : undefined;
 }
 
@@ -357,7 +360,7 @@ export function setupRenderPreview(ctx: vscode.ExtensionContext) {
 		vscode.languages.registerCodeLensProvider(GO_MODE, {
 			async provideCodeLenses(document) {
 				const codeLens = getGnoConfig(document.uri).get<{ render?: boolean }>('enableCodeLens');
-				if (codeLens?.render === false || /_(file)?test\.gno$/.test(document.fileName)) {
+				if (codeLens?.render === false || isGnoTestFile(document.fileName)) {
 					return [];
 				}
 				const match = /^func Render\(/m.exec(document.getText());

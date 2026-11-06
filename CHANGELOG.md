@@ -5,11 +5,15 @@
 
 * start and stop gnodev from the editor, show gnoweb in a webview or the external browser, and reload packages or reset realms state from the webview title bar ([#5](https://github.com/notJoon/vscode-gno/pull/5))
 * select the network that transactions are sent to from `gno.networks`, with a remote and a chain ID, through **Gno: Select Network** or the status bar. Gno Add Package To Chain uses it instead of asking for the remote, and now passes the chain ID ([#12](https://github.com/notJoon/vscode-gno/pull/12))
+* call crossing functions of realms from a `call` code lens or **Gno: Call Realm Function**, run a script with **Gno: Run Script On Chain**, and query realms with **Gno: Evaluate Expression In Realm** (`vm/qeval`) and **Gno: Query Render** (`vm/qrender`) on the selected network, from the command palette or the editor context menu (`gno.editorContextMenuCommands.realm`) ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 
 
 ### Bug Fixes
 
 * Gno Add Package To Chain failed with current gnokey, which has no `-deposit` flag. Coins sent with the package are now set with `-send`, and are optional ([#12](https://github.com/notJoon/vscode-gno/pull/12))
+* Gno Add Package To Chain shows why a deploy failed, such as `package already exists`, as an error instead of an information message with the exit code ([#7](https://github.com/notJoon/vscode-gno/issues/7))
+* the Gno Add Package To Chain editor context menu entry never showed, as `gno.editorContextMenuCommands.addPackage` was shadowed by the `gno.editorContextMenuCommands` object. It is now a property of that object ([#7](https://github.com/notJoon/vscode-gno/issues/7))
+* **Gno: Preview Render** previewed the realm of the closest `gnomod.toml` for a file in a subdirectory of it, such as `gno.land/r/demo/foo` for `foo/sub/x.gno`, instead of its own package `gno.land/r/demo/foo/sub` ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 
 ## 1.0.2 (2026-11-03)
 

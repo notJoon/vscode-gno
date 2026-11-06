@@ -272,6 +272,26 @@
         "description": "Select the network from gno.networks that Gno transactions and queries are sent to"
       },
       {
+        "command": "gno.maketx.call",
+        "title": "Gno: Call Realm Function",
+        "description": "Call a crossing function of the realm of the active file on the selected network"
+      },
+      {
+        "command": "gno.maketx.run",
+        "title": "Gno: Run Script On Chain",
+        "description": "Run the main function of the active file on the selected network with gnokey maketx run"
+      },
+      {
+        "command": "gno.query.eval",
+        "title": "Gno: Evaluate Expression In Realm",
+        "description": "Evaluate an expression, such as Counter(), in the realm of the active file on the selected network"
+      },
+      {
+        "command": "gno.query.render",
+        "title": "Gno: Query Render",
+        "description": "Show the Render output of the realm of the active file on the selected network"
+      },
+      {
         "command": "gno.gnodev.start",
         "title": "Gno: Start gnodev",
         "description": "Start gnodev in the directory of the active file and open gnoweb",
@@ -460,11 +480,6 @@
           "default": "local",
           "markdownDescription": "Name of the network in `#gno.networks#` used by chain commands such as **Gno Add Package To Chain**. The default `local` network is the node started by gnodev.",
           "scope": "window"
-        },
-        "gno.editorContextMenuCommands.addPackage": {
-          "type": "boolean",
-          "default": true,
-          "description": "If true, adds command to add package to the Gno blockchain to the editor context menu"
         },
         "gno.disableConcurrentTests": {
           "type": "boolean",
@@ -696,12 +711,18 @@
               "type": "boolean",
               "default": true,
               "description": "If true, enables code lens for previewing the Render output of realms"
+            },
+            "call": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, enables code lens for calling crossing functions of realms"
             }
           },
           "additionalProperties": false,
           "default": {
             "runtest": true,
-            "render": true
+            "render": true,
+            "call": true
           },
           "description": "Feature level setting to enable/disable code lens for references and run/debug tests",
           "scope": "resource"
@@ -728,6 +749,16 @@
               "type": "boolean",
               "default": true,
               "description": "If true, adds command to import a package to the editor context menu"
+            },
+            "addPackage": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, adds command to add package to the Gno blockchain to the editor context menu"
+            },
+            "realm": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, adds commands to call realm functions, run scripts, and query realms on the selected network to the editor context menu"
             }
           },
           "additionalProperties": false,
@@ -735,7 +766,9 @@
             "fillStruct": false,
             "testAtCursor": true,
             "testFile": false,
-            "addImport": true
+            "addImport": true,
+            "addPackage": true,
+            "realm": true
           },
           "description": "Experimental Feature: Enable/Disable entries from the context menu in the editor.",
           "scope": "resource"
@@ -1367,12 +1400,48 @@
         {
           "command": "gno.render.preview",
           "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.maketx.call",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.maketx.run",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.query.eval",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.query.render",
+          "when": "resourceLangId == gno"
         }
       ],
       "editor/context": [
         {
           "when": "editorTextFocus && config.gno.editorContextMenuCommands.addPackage && resourceLangId == gno",
           "command": "gno.maketx.addpkg",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.maketx.call",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.maketx.run",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.query.eval",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.query.render",
           "group": "Gno group 1"
         },
         {

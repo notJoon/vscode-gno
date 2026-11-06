@@ -61,6 +61,7 @@ import { GoExtensionContext } from './context';
 import * as commands from './commands';
 import { GoTaskProvider } from './gnoTaskProvider';
 import { addPackage } from './gnoAddPkg';
+import { callRealmFunction, evalRealm, queryRender, runScript, setupCallCodeLens } from './gnoRealm';
 import { registerGnoDebugger } from './gnoDebug';
 
 const goCtx: GoExtensionContext = {};
@@ -147,6 +148,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 	registerCommand('gno.tools.install', commands.installTools);
 	registerCommand('gno.maketx.addpkg', addPackage());
 	registerCommand('gno.network.select', selectNetwork);
+	registerCommand('gno.maketx.call', callRealmFunction);
+	registerCommand('gno.maketx.run', runScript);
+	registerCommand('gno.query.eval', evalRealm);
+	registerCommand('gno.query.render', queryRender);
+	setupCallCodeLens(ctx);
 	setupNetworkStatusBar(ctx);
 	registerCommand('gno.gnodev.start', startGnodev);
 	registerCommand('gno.gnodev.stop', () => stopGnodev);
