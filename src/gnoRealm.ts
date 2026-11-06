@@ -1,45 +1,18 @@
 import vscode = require('vscode');
-import cp = require('child_process');
+import fs = require('fs');
 import path = require('path');
 import { CommandFactory } from './commands';
 import { getGnoConfig } from './config';
-import { toolExecutionEnvironment } from './gnoEnv';
 import { GnoNetwork, requireSelectedNetwork } from './gnoNetwork';
 import { GO_MODE } from './gnoMode';
-import { CrossingFunc, crossingFuncs, gnokeyError } from './gnoRealmFuncs';
+import { CrossingFunc, crossingFuncs } from './gnoRealmFuncs';
+import { runGnokey } from './gnokey';
 import { outputChannel } from './gnoStatus';
 import { editorRealm } from './gnodev/gnodev';
-import { getBinPath } from './util';
 
 /** The key name last used to sign, offered again by the next transaction. */
 let lastKey = '';
 let lastEval = '';
-
-/**
- * Runs gnokey with `args`, writing `password` to its stdin when set, and
- * resolves once it succeeds.
- */
-function runGnokey(args: string[], cwd: string | undefined, password?: string): Promise<void> {
-	const gnokey = getBinPath('gnokey');
-	outputChannel.appendLine(`$ ${gnokey} ${args.join(' ')}`);
-	return new Promise((resolve, reject) => {
-		const child = cp.spawn(gnokey, args, { cwd, env: toolExecutionEnvironment() });
-		let stdout = '';
-		let stderr = '';
-		child.stdout.on('data', (d) => (stdout += d));
-		child.stderr.on('data', (d) => (stderr += d));
-		child.stdin.end(password === undefined ? '' : `${password}\n`);
-		child.on('error', (err) => reject(new Error(`gnokey failed: ${err.message}`)));
-		child.on('close', (code) => {
-			outputChannel.append(stdout + stderr.replace(/^Enter password\.\n?/m, ''));
-			if (code === 0) {
-				resolve();
-			} else {
-				reject(new Error(gnokeyError(stderr) ?? `gnokey exited with code ${code}`));
-			}
-		});
-	});
-}
 
 /** Runs gnokey with a progress notification, and shows its output or error. */
 async function runWithProgress(title: string, args: string[], cwd?: string, password?: string) {
@@ -107,21 +80,41 @@ function txFlags(network: GnoNetwork, uri: vscode.Uri): string[] {
 }
 
 /**
+ * Returns the exported crossing functions of the package of `uri`, from the
+ * unsaved text of open files and else from disk, with the file declaring each.
+ */
+async function packageFuncs(uri: vscode.Uri): Promise<(CrossingFunc & { file: string })[]> {
+	const dir = path.dirname(uri.fsPath);
+	const files = (await fs.promises.readdir(dir))
+		.filter((f) => f.endsWith('.gno') && !/_(file)?test\.gno$/.test(f))
+		.sort();
+	const funcs = await Promise.all(
+		files.map(async (file) => {
+			const full = path.join(dir, file);
+			const open = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === full);
+			const src = open ? open.getText() : await fs.promises.readFile(full, 'utf8');
+			return crossingFuncs(src).map((f) => ({ ...f, file }));
+		})
+	);
+	return funcs.flat();
+}
+
+/**
  * Calls a crossing function of the realm of the active file with
  * `gnokey maketx call`, asking for its arguments. Without a `func` argument,
- * the function is picked from the active file.
+ * the function is picked from the files of the package.
  */
 export const callRealmFunction: CommandFactory = () => async (args?: { func?: string }) => {
 	const realm = await activeRealm();
 	if (!realm) {
 		return;
 	}
-	const funcs = crossingFuncs(realm.editor.document.getText());
+	const funcs = await packageFuncs(realm.editor.document.uri);
 	let func: CrossingFunc | undefined = funcs.find((f) => f.name === args?.func);
 	if (!func) {
 		if (!funcs.length) {
 			vscode.window.showErrorMessage(
-				'The active file has no exported crossing function, func F(cur realm, ...).'
+				`${realm.module} has no exported crossing function, func F(cur realm, ...).`
 			);
 			return;
 		}
@@ -129,7 +122,7 @@ export const callRealmFunction: CommandFactory = () => async (args?: { func?: st
 			await vscode.window.showQuickPick(
 				funcs.map((f) => ({
 					label: f.name,
-					description: `(${f.params.map((p) => `${p.name} ${p.type}`).join(', ')})`,
+					description: `(${f.params.map((p) => `${p.name} ${p.type}`).join(', ')}) in ${f.file}`,
 					func: f
 				})),
 				{ placeHolder: `Function of ${realm.module} to call` }

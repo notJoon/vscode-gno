@@ -38,7 +38,7 @@ Experimental Feature: Enable/Disable entries from the context menu in the editor
 
 Default:
 ```
-map[addImport:true fillStruct:false testAtCursor:true testFile:false]
+map[addImport:true fillStruct:false realm:true testAtCursor:true testFile:false]
 ```
 
 ### `gno.editorContextMenuCommands.addPackage`

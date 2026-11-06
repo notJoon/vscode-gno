@@ -48,6 +48,16 @@ suite('realm crossing functions', () => {
 			gnokeyError('pkg:0:0: name Nope not declared:\n--- preprocess stack ---'),
 			'pkg:0:0: name Nope not declared:'
 		);
+		const nested = [
+			'--= Error =--',
+			'Msg Traces:',
+			'    0  github.com/gnolang/gno/tm2/pkg/errors/errors.go:103 - deliver transaction failed: log:--= Error =--',
+			'Msg Traces:',
+			'    0  gno/gno.land/pkg/sdk/vm/errors.go:80 - package already exists: gno.land/r/demo/foo',
+			'Stack Trace:',
+			'    0  gno/tm2/pkg/errors/errors.go:93'
+		].join('\n');
+		assert.strictEqual(gnokeyError(nested), 'package already exists: gno.land/r/demo/foo');
 		assert.strictEqual(gnokeyError('Enter password.\n'), undefined);
 	});
 });

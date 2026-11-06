@@ -754,6 +754,11 @@
               "type": "boolean",
               "default": true,
               "description": "If true, adds command to import a package to the editor context menu"
+            },
+            "realm": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, adds commands to call realm functions, run scripts, and query realms on the selected network to the editor context menu"
             }
           },
           "additionalProperties": false,
@@ -761,7 +766,8 @@
             "fillStruct": false,
             "testAtCursor": true,
             "testFile": false,
-            "addImport": true
+            "addImport": true,
+            "realm": true
           },
           "description": "Experimental Feature: Enable/Disable entries from the context menu in the editor.",
           "scope": "resource"
@@ -1415,6 +1421,26 @@
         {
           "when": "editorTextFocus && config.gno.editorContextMenuCommands.addPackage && resourceLangId == gno",
           "command": "gno.maketx.addpkg",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.maketx.call",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.maketx.run",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.query.eval",
+          "group": "Gno group 1"
+        },
+        {
+          "when": "editorTextFocus && config.gno.editorContextMenuCommands.realm && resourceLangId == gno",
+          "command": "gno.query.render",
           "group": "Gno group 1"
         },
         {

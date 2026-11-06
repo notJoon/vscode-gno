@@ -1,11 +1,9 @@
 import vscode = require('vscode');
-import cp = require('child_process');
 import { CommandFactory } from './commands';
 import { getGnoConfig } from './config';
-import { toolExecutionEnvironment } from './gnoEnv';
 import { GnoNetwork, requireSelectedNetwork } from './gnoNetwork';
-import { getBinPath } from './util';
 import { diagnosticsStatusBarItem, outputChannel } from './gnoStatus';
+import { runGnokey } from './gnokey';
 
 // Constants
 const GNO_ADD_PKG_COMMAND = 'gno.maketx.addpkg';
@@ -66,10 +64,8 @@ async function executeAddPackage(fileUri: vscode.Uri, goConfig: vscode.Workspace
 
 	outputChannel.appendLine(`Starting add package operation in ${rootDir}`);
 
-	const buildEnv = toolExecutionEnvironment();
-
 	// Execute the gnokey command
-	await runGnokeyCommand(rootDir, inputs, network, configOptions, buildEnv);
+	await runGnokeyCommand(rootDir, inputs, network, configOptions);
 }
 
 /**
@@ -157,14 +153,8 @@ async function runGnokeyCommand(
 		broadcast: boolean;
 		gasFee: string;
 		gasWanted: string;
-	},
-	env: NodeJS.ProcessEnv
-): Promise<void> {
-	const gnokey = getBinPath('gnokey');
-	if (!gnokey) {
-		throw new Error(`${GNO_ADD_PKG_COMMAND}: gnokey binary not found`);
 	}
-
+): Promise<void> {
 	const args = [
 		'maketx',
 		'addpkg',
@@ -187,37 +177,6 @@ async function runGnokeyCommand(
 
 	args.push('-remote', network.remote, '-chainid', network.chainId, '-insecure-password-stdin', inputs.keyname);
 
-	outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: executing ${gnokey} ${args.join(' ')}`);
-
-	return new Promise<void>((resolve, reject) => {
-		const child = cp.spawn(gnokey, args, {
-			cwd: rootDir,
-			env: env
-		});
-
-		child.stderr.on('data', (data) => {
-			const output = data.toString();
-			outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: ${output}`);
-			if (output.startsWith('Enter password') && child.stdin) {
-				child.stdin.write(`${inputs.password}\n`);
-			}
-		});
-
-		child.stdout.on('data', (data) => {
-			outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: ${data}`);
-		});
-
-		child.on('error', (err) => {
-			reject(new Error(`${GNO_ADD_PKG_COMMAND} failed: ${err.message}`));
-		});
-
-		child.on('exit', (code) => {
-			if (code === 0) {
-				outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: Successfully added package`);
-				resolve();
-			} else {
-				reject(new Error(`${GNO_ADD_PKG_COMMAND} failed with exit code ${code}`));
-			}
-		});
-	});
+	await runGnokey(args, rootDir, inputs.password);
+	outputChannel.appendLine(`${GNO_ADD_PKG_COMMAND}: Successfully added package`);
 }

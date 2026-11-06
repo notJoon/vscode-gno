@@ -40,11 +40,11 @@ function parseParams(list: string): { name: string; type: string }[] {
 }
 
 /**
- * Returns the cause of a gnokey failure from its stderr: the first message
- * trace of a transaction error, or else the first line that is not the
- * password prompt.
+ * Returns the cause of a gnokey failure from its stderr: the last message
+ * trace of a transaction error, which is the innermost when errors are
+ * nested, or else the first line that is not the password prompt.
  */
 export function gnokeyError(stderr: string): string | undefined {
-	const trace = /^\s*\d+\s+\S+ - (.+)$/m.exec(stderr)?.[1];
+	const trace = [...stderr.matchAll(/^\s*\d+\s+\S+ - (.+)$/gm)].pop()?.[1];
 	return trace ?? stderr.split('\n').find((l) => l.trim() && !l.startsWith('Enter password'));
 }
