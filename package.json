@@ -272,6 +272,26 @@
         "description": "Select the network from gno.networks that Gno transactions and queries are sent to"
       },
       {
+        "command": "gno.maketx.call",
+        "title": "Gno: Call Realm Function",
+        "description": "Call a crossing function of the realm of the active file on the selected network"
+      },
+      {
+        "command": "gno.maketx.run",
+        "title": "Gno: Run Script On Chain",
+        "description": "Run the main function of the active file on the selected network with gnokey maketx run"
+      },
+      {
+        "command": "gno.query.eval",
+        "title": "Gno: Evaluate Expression In Realm",
+        "description": "Evaluate an expression, such as Counter(), in the realm of the active file on the selected network"
+      },
+      {
+        "command": "gno.query.render",
+        "title": "Gno: Query Render",
+        "description": "Show the Render output of the realm of the active file on the selected network"
+      },
+      {
         "command": "gno.gnodev.start",
         "title": "Gno: Start gnodev",
         "description": "Start gnodev in the directory of the active file and open gnoweb",
@@ -696,12 +716,18 @@
               "type": "boolean",
               "default": true,
               "description": "If true, enables code lens for previewing the Render output of realms"
+            },
+            "call": {
+              "type": "boolean",
+              "default": true,
+              "description": "If true, enables code lens for calling crossing functions of realms"
             }
           },
           "additionalProperties": false,
           "default": {
             "runtest": true,
-            "render": true
+            "render": true,
+            "call": true
           },
           "description": "Feature level setting to enable/disable code lens for references and run/debug tests",
           "scope": "resource"
@@ -1366,6 +1392,22 @@
         },
         {
           "command": "gno.render.preview",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.maketx.call",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.maketx.run",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.query.eval",
+          "when": "resourceLangId == gno"
+        },
+        {
+          "command": "gno.query.render",
           "when": "resourceLangId == gno"
         }
       ],

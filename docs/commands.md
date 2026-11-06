@@ -144,6 +144,30 @@ Add a package to the Gno blockchain
 
 Select the network from gno.networks that Gno transactions and queries are sent to
 
+### Gno: Call Realm Function
+
+#### `gno.maketx.call`
+
+Call a crossing function of the realm of the active file on the selected network
+
+### Gno: Run Script On Chain
+
+#### `gno.maketx.run`
+
+Run the main function of the active file on the selected network with gnokey maketx run
+
+### Gno: Evaluate Expression In Realm
+
+#### `gno.query.eval`
+
+Evaluate an expression, such as Counter(), in the realm of the active file on the selected network
+
+### Gno: Query Render
+
+#### `gno.query.render`
+
+Show the Render output of the realm of the active file on the selected network
+
 ### Gno: Start gnodev
 
 #### `gno.gnodev.start`
@@ -173,3 +197,9 @@ Reload the packages and reset the realms state
 #### `gno.gnodev.openExternal`
 
 Open the gnoweb served by gnodev in the external browser
+
+### Gno: Preview Render
+
+#### `gno.render.preview`
+
+Preview the Render output of the realm of the active file in gnoweb, starting gnodev if needed

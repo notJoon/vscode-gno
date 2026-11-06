@@ -5,6 +5,7 @@
 
 * start and stop gnodev from the editor, show gnoweb in a webview or the external browser, and reload packages or reset realms state from the webview title bar ([#5](https://github.com/notJoon/vscode-gno/pull/5))
 * select the network that transactions are sent to from `gno.networks`, with a remote and a chain ID, through **Gno: Select Network** or the status bar. Gno Add Package To Chain uses it instead of asking for the remote, and now passes the chain ID ([#12](https://github.com/notJoon/vscode-gno/pull/12))
+* call crossing functions of realms from a `call` code lens or **Gno: Call Realm Function**, run a script with **Gno: Run Script On Chain**, and query realms with **Gno: Evaluate Expression In Realm** (`vm/qeval`) and **Gno: Query Render** (`vm/qrender`) on the selected network ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 
 
 ### Bug Fixes

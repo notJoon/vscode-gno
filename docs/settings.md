@@ -53,7 +53,7 @@ Feature level setting to enable/disable code lens for references and run/debug t
 
 Default:
 ```
-map[runtest:true]
+map[call:true render:true runtest:true]
 ```
 
 ### `gno.formatTool`

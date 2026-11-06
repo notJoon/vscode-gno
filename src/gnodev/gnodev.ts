@@ -300,7 +300,7 @@ async function warnIfNotLoaded(s: GnodevServer, file: vscode.Uri, module: string
 	}
 }
 
-async function editorRealm(uri: vscode.Uri | undefined): Promise<string | undefined> {
+export async function editorRealm(uri: vscode.Uri | undefined): Promise<string | undefined> {
 	return uri?.scheme === 'file' ? findRealm(path.dirname(uri.fsPath)) : undefined;
 }
 
