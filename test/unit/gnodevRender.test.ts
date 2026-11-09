@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { renderUrlPath } from '../../src/gnodev/render';
+import { packagePath, renderUrlPath } from '../../src/gnodev/render';
 
 suite('gnodev render', () => {
 	test('realm home', () => {
@@ -14,5 +14,12 @@ suite('gnodev render', () => {
 	test('not a realm', () => {
 		assert.strictEqual(renderUrlPath('gno.land/p/demo/avl', ''), undefined);
 		assert.strictEqual(renderUrlPath('r/demo/foo', ''), undefined);
+	});
+
+	test('package path below the module', () => {
+		assert.strictEqual(packagePath('gno.land/r/demo/foo', ''), 'gno.land/r/demo/foo');
+		assert.strictEqual(packagePath('gno.land/r/demo/foo', 'sub'), 'gno.land/r/demo/foo/sub');
+		assert.strictEqual(packagePath('gno.land/r/demo/foo', 'a/b'), 'gno.land/r/demo/foo/a/b');
+		assert.strictEqual(packagePath('gno.land/r/demo/foo', 'a\\b'), 'gno.land/r/demo/foo/a/b');
 	});
 });

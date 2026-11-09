@@ -10,3 +10,11 @@ export function renderUrlPath(module: string, renderPath: string): string | unde
 	}
 	return renderPath ? `${realm}:${encodeURI(renderPath)}` : realm;
 }
+
+/**
+ * Returns the package path of the directory at `relDir` below the module
+ * with path `module`, such as `gno.land/r/demo/foo/sub` for `sub`.
+ */
+export function packagePath(module: string, relDir: string): string {
+	return [module, ...relDir.split(/[\\/]/).filter(Boolean)].join('/');
+}
