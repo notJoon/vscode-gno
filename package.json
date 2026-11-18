@@ -1280,7 +1280,7 @@
             "ui.documentation.linkTarget": {
               "type": "string",
               "markdownDescription": "Base domain used by gnopls for documentation links. On-chain `gno.land/r/...` and `gno.land/p/...` links open the source page on the selected network’s `gnoweb` URL in `#gno.networks#`. Modules matching GOPRIVATE have no hover links.",
-              "default": "gno.land",
+              "default": "pkg.go.dev",
               "scope": "resource"
             },
             "ui.documentation.linksInHover": {

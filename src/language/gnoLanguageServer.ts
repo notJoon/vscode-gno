@@ -632,7 +632,6 @@ async function adjustGoplsWorkspaceConfiguration(
 	}
 
 	workspaceConfig = filterGoplsDefaultConfigValues(workspaceConfig, resource) || {};
-	workspaceConfig['ui.documentation.linkTarget'] ??= 'gno.land';
 	// note: workspaceConfig is a modifiable, valid object.
 	const goConfig = getGnoConfig(resource);
 	workspaceConfig = passGoConfigToGoplsConfigValues(workspaceConfig, goConfig);

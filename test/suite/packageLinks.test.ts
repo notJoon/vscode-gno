@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { buildLanguageClient } from '../../src/language/gnoLanguageServer';
 
 suite('package link middleware', () => {
-	test('forwards the default and rewrites document links and hover markdown', async () => {
+	test('rewrites document links and hover markdown', async () => {
 		const client = await buildLanguageClient(
 			{},
 			{
@@ -18,7 +18,6 @@ suite('package link middleware', () => {
 			}
 		);
 		try {
-			assert.strictEqual(client.clientOptions.initializationOptions['ui.documentation.linkTarget'], 'gno.land');
 			const middleware = client.clientOptions.middleware!;
 			const document = await vscode.workspace.openTextDocument({ language: 'gno', content: 'package demo' });
 			const token = new vscode.CancellationTokenSource();
@@ -27,7 +26,10 @@ suite('package link middleware', () => {
 				const link = new vscode.DocumentLink(range, vscode.Uri.parse('https://gno.land/gno.land/r/demo/foo'));
 				const links = await middleware.provideDocumentLinks!(document, token.token, () => [link]);
 				assert.strictEqual(links![0].target!.toString(), 'http://127.0.0.1:8888/r/demo/foo%24source');
-				const source = new vscode.DocumentLink(range, vscode.Uri.parse('https://gno.land/r/demo/foo$source'));
+				const source = new vscode.DocumentLink(
+					range,
+					vscode.Uri.parse('https://pkg.go.dev/gno.land/r/demo/foo$source')
+				);
 				const sourceLinks = await middleware.provideDocumentLinks!(document, token.token, () => [source]);
 				assert.strictEqual(sourceLinks![0].target!.toString(), 'http://127.0.0.1:8888/r/demo/foo%24source');
 				const file = new vscode.DocumentLink(

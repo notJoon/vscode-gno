@@ -1,5 +1,5 @@
 /** Maps gnopls documentation URLs for on-chain packages to gnoweb source pages. */
-export function packageSourceLink(link: string, gnoweb = 'https://gno.land', linkTarget = 'gno.land'): string {
+export function packageSourceLink(link: string, gnoweb = 'https://gno.land', linkTarget = 'pkg.go.dev'): string {
 	try {
 		const url = new URL(link);
 		if (!['http:', 'https:'].includes(url.protocol)) return link;
@@ -7,9 +7,7 @@ export function packageSourceLink(link: string, gnoweb = 'https://gno.land', lin
 			/^\/gno\.land\//.test(url.pathname) &&
 			[linkTarget, 'gno.land', 'pkg.go.dev', 'godoc.org'].includes(url.host)
 				? url.pathname.slice('/gno.land'.length)
-				: url.host === 'gno.land'
-					? url.pathname
-					: '';
+				: '';
 		const packagePath = path.replace(/(?:\$|%24)source$/, '');
 		if (!/^\/[rp]\/[\w.-]+\/[\w./-]+$/.test(packagePath)) return link;
 		const base = new URL(gnoweb);
