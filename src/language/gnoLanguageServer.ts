@@ -324,7 +324,7 @@ export async function buildLanguageClient(
 			middleware: {
 				provideDocumentLinks: async (document, token, next) => {
 					const links = await next(document, token);
-					const target = getGnoplsConfig(document.uri).get<string>('ui.documentation.linkTarget');
+					const target = getGnoplsConfig(document.uri)['ui.documentation.linkTarget'];
 					for (const link of links ?? []) {
 						if (link.target) {
 							link.target = vscode.Uri.parse(
@@ -345,7 +345,7 @@ export async function buildLanguageClient(
 				},
 				provideHover: async (document, position, token, next) => {
 					const hover = await next(document, position, token);
-					const target = getGnoplsConfig(document.uri).get<string>('ui.documentation.linkTarget');
+					const target = getGnoplsConfig(document.uri)['ui.documentation.linkTarget'];
 					if (hover) {
 						hover.contents = hover.contents.map((content) => {
 							if (typeof content === 'string') {
@@ -632,7 +632,7 @@ async function adjustGoplsWorkspaceConfiguration(
 	}
 
 	workspaceConfig = filterGoplsDefaultConfigValues(workspaceConfig, resource) || {};
-	workspaceConfig['ui.documentation.linkTarget'] ??= getGnoplsConfig(resource).get('ui.documentation.linkTarget');
+	workspaceConfig['ui.documentation.linkTarget'] ??= 'gno.land';
 	// note: workspaceConfig is a modifiable, valid object.
 	const goConfig = getGnoConfig(resource);
 	workspaceConfig = passGoConfigToGoplsConfigValues(workspaceConfig, goConfig);
@@ -690,7 +690,9 @@ export async function watchLanguageServerConfiguration(goCtx: GoExtensionContext
 		e.affectsConfiguration('gno.languageServerFlags') ||
 		e.affectsConfiguration('gno.alternateTools') ||
 		e.affectsConfiguration('gno.toolsEnvVars') ||
-		e.affectsConfiguration('gno.formatTool')
+		e.affectsConfiguration('gno.formatTool') ||
+		e.affectsConfiguration('gno.network') ||
+		e.affectsConfiguration('gno.networks')
 		// TODO: Should we check http.proxy too? That affects toolExecutionEnvironment too.
 	) {
 		vscode.commands.executeCommand('gno.languageserver.restart', RestartReason.CONFIG_CHANGE);

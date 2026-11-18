@@ -10,10 +10,11 @@ export function packageSourceLink(link: string, gnoweb = 'https://gno.land', lin
 				: url.host === 'gno.land'
 					? url.pathname
 					: '';
-		if (!/^\/[rp]\/[^/]+\/.+/.test(path)) return link;
+		const packagePath = path.replace(/(?:\$|%24)source$/, '');
+		if (!/^\/[rp]\/[\w.-]+\/[\w./-]+$/.test(packagePath)) return link;
 		const base = new URL(gnoweb);
 		if (!['http:', 'https:'].includes(base.protocol)) return link;
-		return `${base.href.replace(/\/$/, '')}${path.replace(/\$source$/, '')}$source${url.hash}`;
+		return `${base.href.replace(/\/$/, '')}${packagePath}$source${url.hash}`;
 	} catch {
 		return link;
 	}

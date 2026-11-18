@@ -30,6 +30,10 @@ suite('package source links', () => {
 			'https://gno.land/p/demo/avl$source#Tree'
 		);
 		assert.strictEqual(
+			packageSourceLink('https://gno.land/p/demo/avl%24source#Tree'),
+			'https://gno.land/p/demo/avl$source#Tree'
+		);
+		assert.strictEqual(
 			packageSourceLink('https://pkg.go.dev/gno.land/r/gnoland/coins'),
 			'https://gno.land/r/gnoland/coins$source'
 		);
@@ -42,6 +46,9 @@ suite('package source links', () => {
 			'https://pkg.go.dev/r/demo/foo',
 			'https://example.com/gno.land/r/demo/foo',
 			'https://gno.land.example/r/demo/foo',
+			'https://gno.land/r/demo/foo:p/about',
+			'https://gno.land/r/demo/foo$source&file=render.gno',
+			'https://gno.land/r/demo/foo%24source&file=render.gno',
 			'file:///gno.land/r/demo/foo',
 			'not a URL'
 		]) {
