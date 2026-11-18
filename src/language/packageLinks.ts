@@ -3,12 +3,13 @@ export function packageSourceLink(link: string, gnoweb = 'https://gno.land', lin
 	try {
 		const url = new URL(link);
 		if (!['http:', 'https:'].includes(url.protocol)) return link;
-		const path =
-			/^\/gno\.land\//.test(url.pathname) &&
-			[linkTarget, 'gno.land', 'pkg.go.dev', 'godoc.org'].includes(url.host)
-				? url.pathname.slice('/gno.land'.length)
-				: '';
-		const packagePath = path.replace(/(?:\$|%24)source$/, '');
+		if (
+			!url.pathname.startsWith('/gno.land/') ||
+			![linkTarget, 'gno.land', 'pkg.go.dev', 'godoc.org'].includes(url.host)
+		) {
+			return link;
+		}
+		const packagePath = url.pathname.slice('/gno.land'.length).replace(/(?:\$|%24)source$/, '');
 		if (!/^\/[rp]\/[\w.-]+\/[\w./-]+$/.test(packagePath)) return link;
 		const base = new URL(gnoweb);
 		if (!['http:', 'https:'].includes(base.protocol)) return link;

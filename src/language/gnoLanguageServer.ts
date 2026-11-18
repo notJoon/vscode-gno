@@ -324,39 +324,26 @@ export async function buildLanguageClient(
 			middleware: {
 				provideDocumentLinks: async (document, token, next) => {
 					const links = await next(document, token);
+					const gnoweb = getSelectedNetwork()?.gnoweb;
 					const target = getGnoplsConfig(document.uri)['ui.documentation.linkTarget'];
 					for (const link of links ?? []) {
 						if (link.target) {
-							link.target = vscode.Uri.parse(
-								packageSourceLink(link.target.toString(), getSelectedNetwork()?.gnoweb, target)
-							);
+							link.target = vscode.Uri.parse(packageSourceLink(link.target.toString(), gnoweb, target));
 						}
 					}
 					return links;
 				},
-				resolveDocumentLink: async (link, token, next) => {
-					const resolved = await next(link, token);
-					if (resolved?.target) {
-						resolved.target = vscode.Uri.parse(
-							packageSourceLink(resolved.target.toString(), getSelectedNetwork()?.gnoweb)
-						);
-					}
-					return resolved;
-				},
 				provideHover: async (document, position, token, next) => {
 					const hover = await next(document, position, token);
-					const target = getGnoplsConfig(document.uri)['ui.documentation.linkTarget'];
 					if (hover) {
+						const gnoweb = getSelectedNetwork()?.gnoweb;
+						const target = getGnoplsConfig(document.uri)['ui.documentation.linkTarget'];
 						hover.contents = hover.contents.map((content) => {
 							if (typeof content === 'string') {
-								return packageSourceLinksInMarkdown(content, getSelectedNetwork()?.gnoweb, target);
+								return packageSourceLinksInMarkdown(content, gnoweb, target);
 							}
 							if (content instanceof vscode.MarkdownString) {
-								content.value = packageSourceLinksInMarkdown(
-									content.value,
-									getSelectedNetwork()?.gnoweb,
-									target
-								);
+								content.value = packageSourceLinksInMarkdown(content.value, gnoweb, target);
 							}
 							return content;
 						});
