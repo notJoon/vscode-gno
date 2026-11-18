@@ -56,6 +56,8 @@ import { CommandFactory } from '../commands';
 import { updateLanguageServerIconGoStatusBar } from '../gnoStatus';
 import { GoExtensionContext } from '../context';
 import { GoDocumentSelector } from '../gnoMode';
+import { getSelectedNetwork } from '../gnoNetwork';
+import { packageSourceLink, packageSourceLinksInMarkdown } from './packageLinks';
 
 export interface LanguageServerConfig {
 	serverName: string;
@@ -320,6 +322,47 @@ export async function buildLanguageClient(
 				}
 			},
 			middleware: {
+				provideDocumentLinks: async (document, token, next) => {
+					const links = await next(document, token);
+					const target = getGnoplsConfig(document.uri).get<string>('ui.documentation.linkTarget');
+					for (const link of links ?? []) {
+						if (link.target) {
+							link.target = vscode.Uri.parse(
+								packageSourceLink(link.target.toString(), getSelectedNetwork()?.gnoweb, target)
+							);
+						}
+					}
+					return links;
+				},
+				resolveDocumentLink: async (link, token, next) => {
+					const resolved = await next(link, token);
+					if (resolved?.target) {
+						resolved.target = vscode.Uri.parse(
+							packageSourceLink(resolved.target.toString(), getSelectedNetwork()?.gnoweb)
+						);
+					}
+					return resolved;
+				},
+				provideHover: async (document, position, token, next) => {
+					const hover = await next(document, position, token);
+					const target = getGnoplsConfig(document.uri).get<string>('ui.documentation.linkTarget');
+					if (hover) {
+						hover.contents = hover.contents.map((content) => {
+							if (typeof content === 'string') {
+								return packageSourceLinksInMarkdown(content, getSelectedNetwork()?.gnoweb, target);
+							}
+							if (content instanceof vscode.MarkdownString) {
+								content.value = packageSourceLinksInMarkdown(
+									content.value,
+									getSelectedNetwork()?.gnoweb,
+									target
+								);
+							}
+							return content;
+						});
+					}
+					return hover;
+				},
 				handleWorkDoneProgress: async (token, params, next) => {
 					switch (params.kind) {
 						case 'begin':
@@ -589,6 +632,7 @@ async function adjustGoplsWorkspaceConfiguration(
 	}
 
 	workspaceConfig = filterGoplsDefaultConfigValues(workspaceConfig, resource) || {};
+	workspaceConfig['ui.documentation.linkTarget'] ??= getGnoplsConfig(resource).get('ui.documentation.linkTarget');
 	// note: workspaceConfig is a modifiable, valid object.
 	const goConfig = getGnoConfig(resource);
 	workspaceConfig = passGoConfigToGoplsConfigValues(workspaceConfig, goConfig);

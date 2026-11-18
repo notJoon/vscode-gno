@@ -1,0 +1,47 @@
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import { buildLanguageClient } from '../../src/language/gnoLanguageServer';
+
+suite('package link middleware', () => {
+	test('forwards the default and rewrites document links and hover markdown', async () => {
+		const client = await buildLanguageClient(
+			{},
+			{
+				serverName: 'gnopls',
+				path: '',
+				version: { version: '(devel)', goVersion: '' },
+				enabled: false,
+				flags: [],
+				env: {},
+				features: {},
+				checkForUpdates: 'off'
+			}
+		);
+		try {
+			assert.strictEqual(client.clientOptions.initializationOptions['ui.documentation.linkTarget'], 'gno.land');
+			const middleware = client.clientOptions.middleware!;
+			const document = await vscode.workspace.openTextDocument({ language: 'gno', content: 'package demo' });
+			const token = new vscode.CancellationTokenSource();
+			try {
+				const range = new vscode.Range(0, 0, 0, 1);
+				const link = new vscode.DocumentLink(range, vscode.Uri.parse('https://gno.land/gno.land/r/demo/foo'));
+				const links = await middleware.provideDocumentLinks!(document, token.token, () => [link]);
+				assert.strictEqual(links![0].target!.toString(), 'http://127.0.0.1:8888/r/demo/foo%24source');
+				const content = new vscode.MarkdownString('[foo](https://gno.land/gno.land/r/demo/foo#Bar)');
+				content.isTrusted = false;
+				const hover = new vscode.Hover(content, range);
+				const result = await middleware.provideHover!(document, range.start, token.token, () => hover);
+				assert.strictEqual(
+					(result!.contents[0] as vscode.MarkdownString).value,
+					'[foo](http://127.0.0.1:8888/r/demo/foo$source#Bar)'
+				);
+				assert.strictEqual((result!.contents[0] as vscode.MarkdownString).isTrusted, false);
+				assert.strictEqual(result!.range, range);
+			} finally {
+				token.dispose();
+			}
+		} finally {
+			await client.dispose();
+		}
+	});
+});
