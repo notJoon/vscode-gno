@@ -1,14 +1,13 @@
 {
-  "name": "gnolang",
-  "displayName": "Gnolang",
+  "name": "gno",
+  "displayName": "Gno Tools",
   "version": "1.0.2",
-  "publisher": "Gnoverse",
+  "publisher": "notJoon",
   "description": "Rich Gno language support for Visual Studio Code",
   "license": "Apache-2.0",
   "author": {
-    "name": "kazai777"
+    "name": "notJoon"
   },
-  "icon": "media/gno-logo.png",
   "categories": [
     "Programming Languages",
     "Snippets",
@@ -17,10 +16,6 @@
     "Formatters",
     "Testing"
   ],
-  "galleryBanner": {
-    "color": "#F2F2F2",
-    "theme": "light"
-  },
   "private": true,
   "repository": {
     "type": "git",
@@ -31,8 +26,11 @@
   },
   "keywords": [
     "multi-root ready",
+    "gno",
+    "gno.land",
     "gnolang",
-    "gnopls"
+    "gnopls",
+    "realm"
   ],
   "scripts": {
     "clean": "rm -rf ./dist/* && rm -rf ./out/* && rm -rf ./bin/* && rm *.vsix",

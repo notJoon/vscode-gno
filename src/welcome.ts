@@ -178,7 +178,7 @@ export class WelcomePanel {
 							consistent with links. We can't fake this using CSS, as it conflicts with theming.
 						-->
 						<li><a href="#" class="Command" data-command="openDocument" data-document="CHANGELOG.md">Release notes</a></li>
-						<li><a href="https://github.com/gnoverse/vscode-gno">GitHub</a></li>
+						<li><a href="https://github.com/notJoon/vscode-gno">GitHub</a></li>
 						<li><a href="https://discord.com/invite/gnoland">Discord</a></li>
 					</ul>
 				</div>
@@ -206,7 +206,7 @@ export class WelcomePanel {
 					<div class="Card-inner">
 						<p class="Card-title">Getting started</p>
 						<p class="Card-content">Learn about the Gno extension in our
-							<a href="https://github.com/gnoverse/vscode-gno/blob/main/README.md">README</a>.
+							<a href="https://github.com/notJoon/vscode-gno/blob/main/README.md">README</a>.
 						</p>
 					</div>
 				</div>
@@ -224,7 +224,7 @@ export class WelcomePanel {
 					<div class="Card-inner">
 						<p class="Card-title">Troubleshooting</p>
 						<p class="Card-content">Experiencing problems? Open an issue on 
-							<a href="https://github.com/gnoverse/vscode-gno/issues/new/choose">GitHub</a>.
+							<a href="https://github.com/notJoon/vscode-gno/issues/new/choose">GitHub</a>.
 						</p>
 					</div>
 				</div>

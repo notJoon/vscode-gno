@@ -66,7 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$TAG" gnolang-*.vsix \
+          gh release create "$TAG" gno-*.vsix \
             --target "$GITHUB_SHA" \
             --title "$TAG" \
             --notes-file notes.md

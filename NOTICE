@@ -1,0 +1,11 @@
+Gno Tools
+Copyright 2026 notJoon
+
+This product is a fork of gnoverse/vscode-gno
+(https://github.com/gnoverse/vscode-gno), licensed under the Apache License,
+Version 2.0, by the gnoverse/vscode-gno contributors.
+
+It also includes code derived from vscode-go
+(https://github.com/golang/vscode-go), Copyright The Go Authors, licensed under
+the MIT License. The source files derived from vscode-go keep their original
+copyright and license headers.
