@@ -293,7 +293,7 @@ async function installToolWithGo(
 
 	const env = Object.assign({}, envForTools);
 	const version: semver.SemVer | string | undefined | null = tool.version;
-	const importPath = getImportPathWithVersion(tool, version, goVersion);
+	const importPath = getImportPathWithVersion(tool, version);
 
 	try {
 		const goBinary = getBinPath('go');
@@ -388,7 +388,7 @@ export async function promptForMissingTool(toolName: string) {
 		// Offer the option to install all tools.
 		installOptions.push('Install All');
 	}
-	const cmd = `go install -v ${getImportPathWithVersion(tool, undefined, goVersion)}`;
+	const cmd = `go install -v ${getImportPathWithVersion(tool, undefined)}`;
 	const selected = await vscode.window.showErrorMessage(
 		`The "${tool.name}" command is not available. Run "${cmd}" to install.`,
 		...installOptions

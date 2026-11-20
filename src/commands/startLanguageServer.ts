@@ -21,7 +21,6 @@ import {
 	toServerInfo,
 	updateRestartHistory
 } from '../language/gnoLanguageServer';
-import { LegacyLanguageService } from '../language/registerDefaultProviders';
 import { Mutex } from '../utils/mutex';
 
 const languageServerStartMutex = new Mutex();
@@ -57,13 +56,6 @@ export const startLanguageServer: CommandFactory = (ctx, goCtx) => {
 			}
 			updateStatus(goCtx, goConfig, false);
 
-			// Before starting the language server, make sure to deregister any
-			// currently registered language providers.
-			if (goCtx.legacyLanguageService) {
-				goCtx.legacyLanguageService.dispose();
-				goCtx.legacyLanguageService = undefined;
-			}
-
 			if (!shouldActivateLanguageFeatures()) {
 				outputChannel.warn('Cannot activate language features - unsupported environment');
 				return;
@@ -77,9 +69,6 @@ export const startLanguageServer: CommandFactory = (ctx, goCtx) => {
 
 			if (!cfg.enabled) {
 				outputChannel.warn('Language server is disabled');
-				const legacyService = new LegacyLanguageService();
-				goCtx.legacyLanguageService = legacyService;
-				ctx.subscriptions.push(legacyService);
 				updateStatus(goCtx, goConfig, false);
 				return;
 			}

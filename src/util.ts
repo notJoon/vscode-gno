@@ -621,15 +621,7 @@ export function handleDiagnosticErrors(
 	diagnosticMap.forEach((newDiagnostics, file) => {
 		const fileUri = vscode.Uri.parse(file);
 
-		const { buildDiagnosticCollection, lintDiagnosticCollection, vetDiagnosticCollection, languageClient } = goCtx;
-		if (diagnosticCollection === buildDiagnosticCollection) {
-			// If there are lint/vet warnings on current file, remove the ones co-inciding with the new build errors
-			removeDuplicateDiagnostics(lintDiagnosticCollection, fileUri, newDiagnostics);
-			removeDuplicateDiagnostics(vetDiagnosticCollection, fileUri, newDiagnostics);
-		} else if (buildDiagnosticCollection && buildDiagnosticCollection.has(fileUri)) {
-			// If there are build errors on current file, ignore the new lint/vet warnings co-inciding with them
-			newDiagnostics = deDupeDiagnostics(buildDiagnosticCollection.get(fileUri)!.slice(), newDiagnostics);
-		}
+		const { languageClient } = goCtx;
 		// If there are errors from the language client that are on the current file, ignore the warnings co-inciding
 		// with them.
 		if (languageClient && languageClient.diagnostics?.has(fileUri)) {

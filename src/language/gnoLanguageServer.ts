@@ -27,14 +27,12 @@ import {
 	Message,
 	ProvideCodeLensesSignature,
 	ProvideCompletionItemsSignature,
-	ProvideDocumentFormattingEditsSignature,
 	ResponseError,
 	RevealOutputChannelOn
 } from 'vscode-languageclient';
 import { LanguageClient, ServerOptions } from 'vscode-languageclient/node';
 import { getGnoConfig, getGnoplsConfig, getExtensionInfo } from '../config';
 import { toolExecutionEnvironment } from '../gnoEnv';
-import { GoDocumentFormattingEditProvider, usingCustomFormatTool } from './legacy/gnoFormat';
 import { latestToolVersion, promptForMissingTool, promptForUpdatingTool } from '../gnoInstallTools';
 import { getTool, Tool } from '../gnoTools';
 import { getFromGlobalState, updateGlobalState } from '../stateUtils';
@@ -67,9 +65,6 @@ export interface LanguageServerConfig {
 	enabled: boolean;
 	flags: string[];
 	env: any;
-	features: {
-		formatter?: GoDocumentFormattingEditProvider;
-	};
 	checkForUpdates: string;
 }
 
@@ -222,18 +217,12 @@ export function buildLanguageClientOption(
 	);
 }
 
-export class GoLanguageClient extends LanguageClient implements vscode.Disposable {
-	constructor(id: string, name: string, serverOptions: ServerOptions, clientOptions: LanguageClientOptions) {
-		super(id, name, serverOptions, clientOptions);
-	}
-}
-
 // buildLanguageClient returns a language client built using the given language server config.
 // The returned language client need to be started before use.
 export async function buildLanguageClient(
 	goCtx: GoExtensionContext,
 	cfg: BuildLanguageClientOption
-): Promise<GoLanguageClient> {
+): Promise<LanguageClient> {
 	await getLocalGoplsVersion(cfg); // populate and cache cfg.version
 	const goplsWorkspaceConfig = await adjustGoplsWorkspaceConfiguration(cfg, getGnoplsConfig(), 'gnopls', undefined);
 
@@ -243,7 +232,7 @@ export async function buildLanguageClient(
 	let initializationError: ResponseError<InitializeError> | undefined = undefined;
 
 	// cfg is captured by closures for later use during error report.
-	const c = new GoLanguageClient(
+	const c = new LanguageClient(
 		'gno', // id
 		cfg.serverName, // name e.g. gopls
 		{
@@ -350,13 +339,6 @@ export async function buildLanguageClient(
 					}
 					return hover;
 				},
-				handleWorkDoneProgress: async (token, params, next) => {
-					switch (params.kind) {
-						case 'begin':
-							break;
-					}
-					next(token, params);
-				},
 				executeCommand: async (command: string, args: any[], next: ExecuteCommandSignature) => {
 					try {
 						if (command === 'gnopls.tidy') {
@@ -407,26 +389,13 @@ export async function buildLanguageClient(
 						}
 					}, []);
 				},
-				provideDocumentFormattingEdits: async (
-					document: vscode.TextDocument,
-					options: vscode.FormattingOptions,
-					token: vscode.CancellationToken,
-					next: ProvideDocumentFormattingEditsSignature
-				) => {
-					if (cfg.features.formatter) {
-						return cfg.features.formatter.provideDocumentFormattingEdits(document, options, token);
-					}
-					return next(document, options, token);
-				},
 				handleDiagnostics: (
 					uri: vscode.Uri,
 					diagnostics: vscode.Diagnostic[],
 					next: HandleDiagnosticsSignature
 				) => {
-					const { buildDiagnosticCollection, lintDiagnosticCollection, vetDiagnosticCollection } = goCtx;
+					const { lintDiagnosticCollection } = goCtx;
 					// Deduplicate diagnostics with those found by the other tools.
-					removeDuplicateDiagnostics(vetDiagnosticCollection, uri, diagnostics);
-					removeDuplicateDiagnostics(buildDiagnosticCollection, uri, diagnostics);
 					removeDuplicateDiagnostics(lintDiagnosticCollection, uri, diagnostics);
 
 					return next(uri, diagnostics);
@@ -488,24 +457,6 @@ export async function buildLanguageClient(
 						}
 					}
 					return list;
-				},
-				// Keep track of the last file change in order to not prompt
-				// user if they are actively working.
-				didOpen: async (e, next) => {
-					goCtx.lastUserAction = new Date();
-					void next(e);
-				},
-				didChange: async (e, next) => {
-					goCtx.lastUserAction = new Date();
-					void next(e);
-				},
-				didClose: async (e, next) => {
-					goCtx.lastUserAction = new Date();
-					void next(e);
-				},
-				didSave: async (e, next) => {
-					goCtx.lastUserAction = new Date();
-					void next(e);
 				},
 				workspace: {
 					configuration: async (
@@ -689,20 +640,11 @@ export async function watchLanguageServerConfiguration(goCtx: GoExtensionContext
 export async function buildLanguageServerConfig(
 	goConfig: vscode.WorkspaceConfiguration
 ): Promise<LanguageServerConfig> {
-	let formatter: GoDocumentFormattingEditProvider | undefined;
-	if (usingCustomFormatTool(goConfig)) {
-		formatter = new GoDocumentFormattingEditProvider();
-	}
 	const cfg: LanguageServerConfig = {
 		serverName: '', // remain empty if gopls binary can't be found.
 		path: '',
 		enabled: goConfig['useLanguageServer'] === true,
 		flags: goConfig['languageServerFlags'] || [],
-		features: {
-			// TODO: We should have configs that match these names.
-			// Ultimately, we should have a centralized language server config rather than separate fields.
-			formatter: formatter
-		},
 		env: toolExecutionEnvironment(),
 		checkForUpdates: getCheckForToolsUpdatesConfig(goConfig)
 	};

@@ -13,7 +13,6 @@ suite('package link middleware', () => {
 				enabled: false,
 				flags: [],
 				env: {},
-				features: {},
 				checkForUpdates: 'off'
 			}
 		);

@@ -50,7 +50,6 @@ import { cancelRunningTests, showTestOutput } from './testUtils';
 import { cleanupTempDir, getBinPath } from './util';
 import { WelcomePanel } from './welcome';
 import vscode = require('vscode');
-import { getFormatTool } from './language/legacy/gnoFormat';
 import { ExtensionAPI } from './export';
 import extensionAPI from './extensionAPI';
 import { GoTestExplorer, isVscodeTestingAPIAvailable } from './gnoTest/explore';
@@ -112,14 +111,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 
 	GoRunTestCodeLensProvider.activate(ctx, goCtx);
 
-	goCtx.buildDiagnosticCollection = vscode.languages.createDiagnosticCollection('gno');
-	ctx.subscriptions.push(goCtx.buildDiagnosticCollection);
 	goCtx.lintDiagnosticCollection = vscode.languages.createDiagnosticCollection(
 		lintDiagnosticCollectionName(getGnoConfig()['lintTool'])
 	);
 	ctx.subscriptions.push(goCtx.lintDiagnosticCollection);
-	goCtx.vetDiagnosticCollection = vscode.languages.createDiagnosticCollection('go-vet');
-	ctx.subscriptions.push(goCtx.vetDiagnosticCollection);
 
 	registerCommand('gno.gnopath', commands.getCurrentGoPath);
 	registerCommand('gno.gnoroot', commands.getCurrentGoRoot);
@@ -217,9 +212,6 @@ function addOnDidChangeConfigListeners(ctx: vscode.ExtensionContext) {
 				void updateGoVarsFromConfig(goCtx);
 			}
 
-			if (e.affectsConfiguration('gno.formatTool')) {
-				checkToolExists(getFormatTool(updatedGoConfig));
-			}
 			if (e.affectsConfiguration('gno.lintTool')) {
 				checkToolExists(updatedGoConfig['lintTool']);
 			}
