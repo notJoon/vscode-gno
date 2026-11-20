@@ -38,8 +38,7 @@ export function getBinPathFromEnvVar(
 	return null;
 }
 
-// Is same as getBinPathWithPreferredGopathGoroot, but returns why the
-// returned path was chosen.
+/** Returns the path of the tool binary and why that path was chosen. */
 export function getBinPathWithPreferredGopathGorootWithExplanation(
 	toolName: string,
 	preferredGopaths: string[],
