@@ -20,6 +20,8 @@ Entries for 1.0.1 and earlier come from upstream [gnoverse/vscode-gno](https://g
 * the gnopls update check threw an error, which also kept the crash report prompt from showing after gnopls crashed ([#24](https://github.com/notJoon/vscode-gno/pull/24))
 * **Install Gno Language Server** in the status bar menu did not install gnopls ([#24](https://github.com/notJoon/vscode-gno/pull/24))
 * **Gno: Start language server's maintainer interface** failed with `command 'gopls.start_debugging' not found`. It now opens the gnopls server information page ([#24](https://github.com/notJoon/vscode-gno/pull/24))
+* **Gno: Initialize gno.mod** opened `gno.mod`, which `gno mod init` no longer creates. It is renamed to **Gno: Initialize gnomod.toml** and opens the created `gnomod.toml` ([#19](https://github.com/notJoon/vscode-gno/issues/19))
+* `gnomod.toml` opened as plain text. It now has its own `gnomod` language with TOML syntax highlighting and `#` line comments ([#26](https://github.com/notJoon/vscode-gno/pull/26))
 
 
 ### Miscellaneous

@@ -1,0 +1,103 @@
+{
+  "scopeName": "source.gnomod",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#table"
+    },
+    {
+      "include": "#key"
+    },
+    {
+      "include": "#value"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": "(#).*$",
+      "name": "comment.line.number-sign.gnomod",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.comment.gnomod"
+        }
+      }
+    },
+    "table": {
+      "match": "^\\s*(\\[\\[?)\\s*([^\\]]+?)\\s*(\\]\\]?)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.table.gnomod"
+        },
+        "2": {
+          "name": "entity.name.tag.table.gnomod"
+        },
+        "3": {
+          "name": "punctuation.definition.table.gnomod"
+        }
+      }
+    },
+    "key": {
+      "match": "((?:[A-Za-z0-9_-]+|\"[^\"]*\"|'[^']*')(?:\\s*\\.\\s*(?:[A-Za-z0-9_-]+|\"[^\"]*\"|'[^']*'))*)\\s*(=)",
+      "captures": {
+        "1": {
+          "name": "support.type.property-name.gnomod"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.gnomod"
+        }
+      }
+    },
+    "value": {
+      "patterns": [
+        {
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "name": "string.quoted.triple.basic.gnomod",
+          "patterns": [
+            {
+              "include": "#escape"
+            }
+          ]
+        },
+        {
+          "begin": "'''",
+          "end": "'''",
+          "name": "string.quoted.triple.literal.gnomod"
+        },
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.basic.gnomod",
+          "patterns": [
+            {
+              "include": "#escape"
+            }
+          ]
+        },
+        {
+          "begin": "'",
+          "end": "'",
+          "name": "string.quoted.single.literal.gnomod"
+        },
+        {
+          "match": "\\b(true|false)\\b",
+          "name": "constant.language.boolean.gnomod"
+        },
+        {
+          "match": "\\b\\d{4}-\\d{2}-\\d{2}(?:[Tt ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:[Zz]|[+-]\\d{2}:\\d{2})?)?\\b",
+          "name": "constant.other.date.gnomod"
+        },
+        {
+          "match": "[+-]?\\b(?:0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)\\b|[+-]?\\b(?:inf|nan)\\b",
+          "name": "constant.numeric.gnomod"
+        }
+      ]
+    },
+    "escape": {
+      "match": "\\\\(?:[btnfr\"\\\\]|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})",
+      "name": "constant.character.escape.gnomod"
+    }
+  }
+}

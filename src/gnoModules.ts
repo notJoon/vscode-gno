@@ -150,13 +150,13 @@ export const goModInit: CommandFactory = () => async () => {
 			env,
 			cwd
 		});
-		outputChannel.appendLine('Module successfully initialized. You are ready to Go :)');
-		vscode.commands.executeCommand('vscode.open', vscode.Uri.file(path.join(cwd, 'gno.mod')));
+		outputChannel.appendLine('Module successfully initialized.');
+		vscode.commands.executeCommand('vscode.open', vscode.Uri.file(path.join(cwd, 'gnomod.toml')));
 	} catch (e) {
 		outputChannel.error((e as Error).message);
 		outputChannel.show();
 		vscode.window.showErrorMessage(
-			`Error running "${goRuntimePath} mod init ${moduleName}": See Go output channel for details`
+			`Error running "${goRuntimePath} mod init ${moduleName}": See Gno output channel for details`
 		);
 	}
 };

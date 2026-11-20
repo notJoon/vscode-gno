@@ -114,7 +114,7 @@ Shows all commands from the Gno extension in the quick pick
 
 Run linter in the current workspace.
 
-### Gno: Initialize gno.mod
+### Gno: Initialize gnomod.toml
 
 #### `gno.run.modinit`
 

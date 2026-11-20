@@ -118,6 +118,20 @@
         }
       },
       {
+        "id": "gnomod",
+        "filenames": [
+          "gnomod.toml"
+        ],
+        "aliases": [
+          "gnomod.toml"
+        ],
+        "configuration": "./languages/gnomod.language-configuration.json",
+        "icon": {
+          "dark": "media/gno-icon-dark.png",
+          "light": "media/gno-icon-light.png"
+        }
+      },
+      {
         "id": "gno.mod",
         "filenames": [
           "gno.mod"
@@ -132,6 +146,11 @@
       }
     ],
     "grammars": [
+      {
+        "language": "gnomod",
+        "scopeName": "source.gnomod",
+        "path": "./syntaxes/gnomod.tmGrammar.json"
+      },
       {
         "language": "gno.mod",
         "scopeName": "gno.mod",
@@ -243,7 +262,7 @@
       },
       {
         "command": "gno.run.modinit",
-        "title": "Gno: Initialize gno.mod",
+        "title": "Gno: Initialize gnomod.toml",
         "description": "Run `gno mod init` in the workspace folder."
       },
       {
