@@ -362,6 +362,7 @@ export async function buildLanguageClient(
 						if (command === 'gnopls.tidy') {
 							await vscode.workspace.saveAll(false);
 						}
+						return await next(command, args);
 					} catch (e) {
 						// TODO: how to print ${e} reliably???
 						const answer = await vscode.window.showErrorMessage(
@@ -827,6 +828,9 @@ export async function shouldUpdateLanguageServer(
 	if (!latestVersion) {
 		latestVersion = tool.latestVersion;
 	}
+	if (!latestVersion) {
+		return null;
+	}
 
 	// If "gopls" is so old that it doesn't have the "gopls version" command,
 	// or its version doesn't match our expectations, usersVersion will be empty or invalid.
@@ -838,7 +842,7 @@ export async function shouldUpdateLanguageServer(
 	// If the user's version does not contain a timestamp,
 	// default to a semver comparison of the two versions.
 	const usersVersionSemver = semver.parse(usersVersion.version, { loose: true });
-	return semver.lt(usersVersionSemver!, latestVersion!) ? latestVersion : null;
+	return semver.lt(usersVersionSemver!, latestVersion) ? latestVersion : null;
 }
 
 interface GoplsVersionOutput {
