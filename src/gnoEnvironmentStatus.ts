@@ -414,13 +414,6 @@ export function getSelectedGo(): GoEnvironmentOption {
 	return getFromWorkspaceState('selectedGno');
 }
 
-/**
- * return reference to the statusbar item
- */
-export function getGoEnvironmentStatusbarItem(): vscode.StatusBarItem {
-	return goEnvStatusbarItem;
-}
-
 export function formatGoVersion(version?: GoVersion): string {
 	if (!version || !version.isValid()) {
 		return '(unknown)';

@@ -73,19 +73,3 @@ function substituteEnvVars(
 
 	return value.replace(/\\\$/g, '$');
 }
-
-export function parseEnvFiles(
-	envFiles: string[] | string | undefined,
-	globalVars?: NodeJS.Dict<string>
-): { [key: string]: string } {
-	const fileEnvs = [];
-	if (typeof envFiles === 'string') {
-		fileEnvs.push(parseEnvFile(envFiles, globalVars));
-	}
-	if (Array.isArray(envFiles)) {
-		envFiles.forEach((envFile) => {
-			fileEnvs.push(parseEnvFile(envFile, globalVars));
-		});
-	}
-	return Object.assign({}, ...fileEnvs);
-}

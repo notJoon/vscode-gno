@@ -116,12 +116,6 @@ export function getCheckForToolsUpdatesConfig(gocfg: vscode.WorkspaceConfigurati
 	return gocfg.get('toolsManagement.checkForUpdates') as string;
 }
 
-export function byteOffsetAt(document: vscode.TextDocument, position: vscode.Position): number {
-	const offset = document.offsetAt(position);
-	const text = document.getText();
-	return Buffer.byteLength(text.substr(0, offset));
-}
-
 export interface Prelude {
 	imports: Array<{
 		kind: string;
@@ -303,29 +297,6 @@ export async function getGoEnv(cwd?: string): Promise<string> {
 	return stdout;
 }
 
-/**
- * Returns boolean indicating if GOPATH is set or not
- * If not set, then prompts user to do set GOPATH
- */
-export function isGoPathSet(): boolean {
-	if (!getCurrentGoPath()) {
-		// TODO(hyangah): is it still possible after go1.8? (https://golang.org/doc/go1.8#gopath)
-		vscode.window
-			.showInformationMessage(
-				'Set GNOPATH environment variable and restart VS Code or set GNOPATH in Workspace settings',
-				'Set GNOPATH in Workspace Settings'
-			)
-			.then((selected) => {
-				if (selected === 'Set GNOPATH in Workspace Settings') {
-					vscode.commands.executeCommand('workbench.action.openWorkspaceSettings');
-				}
-			});
-		return false;
-	}
-
-	return true;
-}
-
 // getBinPath returns the path to the tool.
 export function getBinPath(tool: string, useCache = true): string {
 	const r = getBinPathWithExplanation(tool, useCache);
@@ -355,11 +326,6 @@ export function getBinPathWithExplanation(
 		selectedGoPath ?? (alternateToolPath && resolvePath(substituteEnv(alternateToolPath))),
 		useCache
 	);
-}
-
-export function getFileArchive(document: vscode.TextDocument): string {
-	const fileContents = document.getText();
-	return document.fileName + '\n' + Buffer.byteLength(fileContents, 'utf8') + '\n' + fileContents;
 }
 
 export function substituteEnv(input: string): string {
@@ -776,11 +742,6 @@ export const timeDay = timeHour * 24;
 // daysBetween returns the number of days between a and b.
 export function daysBetween(a: Date, b: Date): number {
 	return msBetween(a, b) / timeDay;
-}
-
-// minutesBetween returns the number of minutes between a and b.
-export function minutesBetween(a: Date, b: Date): number {
-	return msBetween(a, b) / timeMinute;
 }
 
 export function msBetween(a: Date, b: Date): number {
