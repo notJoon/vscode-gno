@@ -28,7 +28,7 @@ Entries for 1.0.1 and earlier come from upstream [gnoverse/vscode-gno](https://g
 
 * remove the Go settings `gno.gopath`, `gno.inferGopath`, `gno.toolsGopath`, `gno.goroot` and the `gofumpt` option of `gno.formatTool`. `GOPATH` now comes only from the environment ([#25](https://github.com/notJoon/vscode-gno/pull/25))
 * delete code left over from vscode-go that nothing reaches, such as the process picker, the `gotests` test generation, testify suite support, the legacy formatter and the build and vet diagnostic collections. With `gno.useLanguageServer` off, no formatter is registered, where formatting failed with an error before ([#25](https://github.com/notJoon/vscode-gno/pull/25))
-* publish as a separate extension, **Gno Tools** (`notJoon.gno`). It shares the `gno.*` commands and settings with the Gnolang extension (`Gnoverse.gnolang`), so uninstall or disable Gnolang first. Marketplace releases use trusted publishing ([#27](https://github.com/notJoon/vscode-gno/pull/27))
+* publish as a separate extension, **Gno Tools** (`notJoon.gno`). It shares the `gno.*` commands and settings with the Gnolang extension (`Gnoverse.gnolang`), so uninstall or disable Gnolang first. Marketplace releases use trusted publishing, and the package ships the license notices of vscode-go, the Gno grammar source and the bundled npm packages in `ThirdPartyNotices.txt` ([#27](https://github.com/notJoon/vscode-gno/pull/27))
 
 ## 1.0.2 (2026-11-03)
 

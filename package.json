@@ -36,7 +36,7 @@
     "clean": "rm -rf ./dist/* && rm -rf ./out/* && rm -rf ./bin/* && rm *.vsix",
     "package": "vsce package --baseContentUrl https://github.com/notJoon/vscode-gno/blob/main --baseImagesUrl https://github.com/notJoon/vscode-gno/raw/main",
     "vscode:prepublish": "npm run compile",
-    "bundle": "esbuild src/gnoMain.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node",
+    "bundle": "esbuild src/gnoMain.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --legal-comments=linked",
     "bundle-dev": "npm run bundle -- --sourcemap",
     "bundle-watch": "npm run bundle -- --sourcemap --watch",
     "test-compile": "tsc -p ./",
@@ -47,7 +47,8 @@
     "lint-fix": "eslint --fix 'src/**/*.{js,jsx,ts,tsx,json,css,scss,md}'",
     "unit-test": "npm run test-compile && mocha -u tdd --timeout 5000 --colors ./out/test/unit",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "license-check": "npx jsgl -l ."
+    "license-check": "npx jsgl -l .",
+    "notices": "node tools/thirdPartyNotices.js"
   },
   "extensionDependencies": [],
   "dependencies": {

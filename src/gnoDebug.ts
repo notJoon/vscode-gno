@@ -1,8 +1,3 @@
-/*---------------------------------------------------------
- * Copyright 2026 The Gno Authors. All rights reserved.
- * Licensed under the MIT License. See LICENSE in the project root for license information.
- *--------------------------------------------------------*/
-
 import * as path from 'path';
 import vscode = require('vscode');
 import { GnoDebugSession } from './debugAdapter/gnoDebugSession';

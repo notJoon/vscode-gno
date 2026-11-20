@@ -102,4 +102,4 @@ Thank you to the developers of both projects for their work and for the inspirat
 
 ## License
 
-[Apache License version 2.0](./LICENSE)
+[Apache License version 2.0](./LICENSE). Parts of the extension come from projects under the MIT License, such as vscode-go; see [NOTICE](./NOTICE) and [ThirdPartyNotices.txt](./ThirdPartyNotices.txt).

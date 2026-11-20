@@ -22,6 +22,11 @@ jobs:
       - name: Lint TypeScript
         run: npm run lint
 
+      - name: Check licenses
+        run: |
+          npm run license-check
+          node tools/thirdPartyNotices.js --check
+
       - name: Compile TypeScript
         run: npm run test-compile
 

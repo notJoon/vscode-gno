@@ -1,5 +1,3 @@
 {
-    "packageAllowlist": [
-      "es5class"
-    ]
-  }
+  "packageAllowlist": ["minimatch", "@isaacs/nonrecursive-glob-match"]
+}
