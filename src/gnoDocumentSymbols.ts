@@ -4,23 +4,15 @@
  *--------------------------------------------------------*/
 
 import vscode = require('vscode');
-import { DocumentSymbolRequest, ExecuteCommandParams, ExecuteCommandRequest } from 'vscode-languageserver-protocol';
-import { getGnoConfig } from './config';
+import { DocumentSymbolRequest } from 'vscode-languageserver-protocol';
 import { GoExtensionContext } from './context';
 
-export function GoDocumentSymbolProvider(
-	goCtx: GoExtensionContext,
-	includeImports?: boolean
-): GoplsDocumentSymbolProvider {
-	return new GoplsDocumentSymbolProvider(goCtx, includeImports);
+export function GoDocumentSymbolProvider(goCtx: GoExtensionContext): GoplsDocumentSymbolProvider {
+	return new GoplsDocumentSymbolProvider(goCtx);
 }
 
-const GOPLS_LIST_IMPORTS = 'gnopls.list_imports';
 export class GoplsDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
-	constructor(
-		private readonly goCtx: GoExtensionContext,
-		private includeImports?: boolean
-	) {}
+	constructor(private readonly goCtx: GoExtensionContext) {}
 
 	public async provideDocumentSymbols(document: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
 		if (!this.goCtx.languageServerIsRunning) {
@@ -30,11 +22,7 @@ export class GoplsDocumentSymbolProvider implements vscode.DocumentSymbolProvide
 		// the URI. Getting a TextDocument from a filename requires opening the file, which can lead to
 		// files being opened that were not requested by the user in order to get information that we just
 		// need the URI to access.
-		if (typeof this.includeImports !== 'boolean') {
-			const gotoSymbolConfig = getGnoConfig(document.uri)['gotoSymbol'];
-			this.includeImports = gotoSymbolConfig ? gotoSymbolConfig['includeImports'] : false;
-		}
-		const { languageClient, serverInfo } = this.goCtx;
+		const { languageClient } = this.goCtx;
 		if (!languageClient) {
 			return [];
 		}
@@ -73,44 +61,8 @@ export class GoplsDocumentSymbolProvider implements vscode.DocumentSymbolProvide
 			pkgDeclRng
 		);
 		packageSymbol.children = symbols;
-		if (this.includeImports && serverInfo?.Commands?.includes(GOPLS_LIST_IMPORTS)) {
-			try {
-				const imports = await listImports(this.goCtx, document);
-				imports?.forEach((value) => {
-					packageSymbol.children.unshift(
-						new vscode.DocumentSymbol(
-							value.Path,
-							'import',
-							vscode.SymbolKind.Namespace,
-							new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)),
-							new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0))
-						)
-					);
-				});
-			} catch (err) {
-				console.log(`Failed to list imports: ${err}`);
-			}
-		}
 		return [packageSymbol];
 	}
-}
-
-async function listImports(
-	goCtx: GoExtensionContext,
-	document: vscode.TextDocument
-): Promise<{ Path: string; Name: string }[]> {
-	const { languageClient } = goCtx;
-	const uri = languageClient?.code2ProtocolConverter.asTextDocumentIdentifier(document).uri;
-	const params: ExecuteCommandParams = {
-		command: GOPLS_LIST_IMPORTS,
-		arguments: [
-			{
-				URI: uri
-			}
-		]
-	};
-	const resp = await languageClient?.sendRequest(ExecuteCommandRequest.type, params);
-	return resp.PackageImports;
 }
 
 function isDocumentSymbol(r: vscode.SymbolInformation[] | vscode.DocumentSymbol[]): r is vscode.DocumentSymbol[] {

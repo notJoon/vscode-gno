@@ -28,20 +28,10 @@ import { walk, WalkStop } from './walk';
 export type ProvideSymbols = (doc: TextDocument, token?: CancellationToken) => Thenable<DocumentSymbol[]>;
 
 const testFuncRegex = /^(?<name>(?<kind>Test|Benchmark|Example|Fuzz)($|\P{Ll}.*))/u;
-const testMethodRegex = /^\(\*(?<type>[^)]+)\)\.(?<name>(?<kind>Test)($|\P{Ll}.*))$/u;
-const runTestSuiteRegex = /^\s*suite\.Run\(\w+,\s*(?:&?(?<type1>\w+)\{\}|new\((?<type2>\w+)\))\)/mu;
-
-interface TestSuite {
-	func?: TestItem;
-	methods: Set<TestItem>;
-}
 
 export class GoTestResolver {
 	public readonly all = new Map<string, TestItem>();
 	public readonly isDynamicSubtest = new WeakSet<TestItem>();
-	public readonly isTestMethod = new WeakSet<TestItem>();
-	public readonly isTestSuiteFunc = new WeakSet<TestItem>();
-	private readonly testSuites = new Map<string, TestSuite>();
 
 	constructor(
 		private readonly workspace: Workspace,
@@ -140,27 +130,6 @@ export class GoTestResolver {
 		// would discover sub tests or benchmarks, if that is feasible.
 	}
 
-	// Find test items related to the given resource
-	find(resource: Uri): TestItem[] {
-		const findStr = resource.toString();
-		const found: TestItem[] = [];
-
-		function find(items: TestItemCollection) {
-			items.forEach((item) => {
-				const itemStr = item.uri?.toString();
-				if (findStr === itemStr) {
-					found.push(item);
-					find(item.children);
-				} else if (itemStr && findStr.startsWith(itemStr)) {
-					find(item.children);
-				}
-			});
-		}
-
-		find(this.ctrl.items);
-		return found;
-	}
-
 	get allItems() {
 		function* it(coll: TestItemCollection): Generator<TestItem> {
 			const arr: TestItem[] = [];
@@ -227,7 +196,7 @@ export class GoTestResolver {
 		} else {
 			const symbols = await this.provideDocumentSymbols(doc);
 			for (const symbol of symbols) {
-				await this.processSymbol(doc, item, seen, false, symbol);
+				await this.processSymbol(doc, item, seen, symbol);
 			}
 		}
 
@@ -411,40 +380,18 @@ export class GoTestResolver {
 		return item;
 	}
 
-	private getTestSuite(type: string): TestSuite {
-		if (this.testSuites.has(type)) {
-			return this.testSuites.get(type) as TestSuite;
-		}
-
-		const methods = new Set<TestItem>();
-		const suite = { methods };
-		this.testSuites.set(type, suite);
-		return suite;
-	}
-
 	// Recursively process a Go AST symbol. If the symbol represents a test, fuzz test,
 	// benchmark, or example function, a test item will be created for it, if one
 	// does not already exist. If the symbol is not a function and contains
 	// children, those children will be processed recursively.
-	private async processSymbol(
-		doc: TextDocument,
-		file: TestItem,
-		seen: Set<string>,
-		importsTestify: boolean,
-		symbol: DocumentSymbol
-	) {
-		// Skip TestMain(*testing.M) - allow TestMain(*testing.T)
-		if (symbol.name === 'TestMain' && /\*testing.M\)/.test(symbol.detail)) {
-			return;
-		}
-
+	private async processSymbol(doc: TextDocument, file: TestItem, seen: Set<string>, symbol: DocumentSymbol) {
 		// Recursively process symbols that are nested
 		if (symbol.kind !== SymbolKind.Function && symbol.kind !== SymbolKind.Method) {
-			for (const sym of symbol.children) await this.processSymbol(doc, file, seen, importsTestify, sym);
+			for (const sym of symbol.children) await this.processSymbol(doc, file, seen, sym);
 			return;
 		}
 
-		const match = symbol.name.match(testFuncRegex) || (importsTestify && symbol.name.match(testMethodRegex));
+		const match = symbol.name.match(testFuncRegex);
 		if (!match) {
 			return;
 		}
@@ -452,10 +399,7 @@ export class GoTestResolver {
 		seen.add(symbol.name);
 
 		const kind = match.groups?.kind.toLowerCase() as GoTestKind;
-		const suite = match.groups?.type ? this.getTestSuite(match.groups.type) : undefined;
-		const existing =
-			this.getItem(file, doc.uri, kind, symbol.name) ||
-			(suite?.func && this.getItem(suite?.func, doc.uri, kind, symbol.name));
+		const existing = this.getItem(file, doc.uri, kind, symbol.name);
 
 		if (existing) {
 			if (!existing.range?.isEqual(symbol.range)) {
@@ -465,50 +409,8 @@ export class GoTestResolver {
 			return existing;
 		}
 
-		const item = this.getOrCreateItem(
-			suite?.func || file,
-			match.groups?.name ?? '<none>',
-			doc.uri,
-			kind,
-			symbol.name
-		);
+		const item = this.getOrCreateItem(file, match.groups?.name ?? '<none>', doc.uri, kind, symbol.name);
 		item.range = symbol.range;
-
-		if (suite) {
-			this.isTestMethod.add(item);
-			if (!suite.func) suite.methods.add(item);
-			return;
-		}
-
-		if (!importsTestify) {
-			return;
-		}
-
-		// Runs any suite
-		const text = doc.getText(symbol.range);
-		if (text.includes('suite.Run(')) {
-			this.isTestSuiteFunc.add(item);
-		}
-
-		// Runs a specific suite
-		// - suite.Run(t, new(MySuite))
-		// - suite.Run(t, MySuite{})
-		// - suite.Run(t, &MySuite{})
-		const matchRunSuite = text.match(runTestSuiteRegex);
-		if (matchRunSuite) {
-			const g = matchRunSuite.groups;
-			const suite = this.getTestSuite(g?.type1 || g?.type2 || '');
-			suite.func = item;
-
-			for (const method of suite.methods) {
-				if (!method.parent || GoTest.parseId(method.parent.id).kind !== 'file') {
-					continue;
-				}
-
-				method.parent.children.delete(method.id);
-				item.children.add(method);
-			}
-		}
 	}
 }
 

@@ -36,7 +36,7 @@ export class GoTestExplorer {
 		if (!isVscodeTestingAPIAvailable) throw new Error('VSCode Testing API is unavailable');
 
 		const ctrl = vscode.tests.createTestController('gno', 'Gno');
-		const symProvider = GoDocumentSymbolProvider(goCtx, true);
+		const symProvider = GoDocumentSymbolProvider(goCtx);
 		const inst = new this(goCtx, workspace, ctrl, context.workspaceState, (doc) =>
 			symProvider.provideDocumentSymbols(doc)
 		);

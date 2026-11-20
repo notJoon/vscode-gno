@@ -112,10 +112,6 @@ export function getTestFlags(goConfig: vscode.WorkspaceConfiguration, args?: any
 	return args && args.hasOwnProperty('flags') && Array.isArray(args['flags']) ? args['flags'] : testFlags;
 }
 
-export function getTestTags(goConfig: vscode.WorkspaceConfiguration): string {
-	return goConfig['testTags'] !== null ? goConfig['testTags'] : goConfig['buildTags'];
-}
-
 /**
  * Returns all Go unit test functions in the given source file.
  *
@@ -127,7 +123,7 @@ export async function getTestFunctions(
 	doc: vscode.TextDocument,
 	token?: vscode.CancellationToken
 ): Promise<vscode.DocumentSymbol[] | undefined> {
-	const documentSymbolProvider = GoDocumentSymbolProvider(goCtx, true);
+	const documentSymbolProvider = GoDocumentSymbolProvider(goCtx);
 	const symbols = await documentSymbolProvider.provideDocumentSymbols(doc);
 
 	if (!symbols || symbols.length === 0 || !symbols[0]) {
@@ -274,57 +270,6 @@ export async function goTest(testconfig: TestConfig): Promise<boolean> {
 	return testResult;
 }
 
-// computeTestCommand returns the test command argument list and extra info necessary
-// to post process the test results.
-// Exported for testing.
-
-export function computeTestCommand(
-	testconfig: TestConfig,
-	targets: string[]
-): {
-	args: Array<string>;
-	outArgs: Array<string>;
-	tmpCoverPath?: string;
-} {
-	const args: Array<string> = ['test'];
-
-	// user-specified flags
-	const argsFlagIdx = testconfig.flags?.indexOf('-args') ?? -1;
-	const userFlags = argsFlagIdx < 0 ? testconfig.flags : testconfig.flags.slice(0, argsFlagIdx);
-	const userArgsFlags = argsFlagIdx < 0 ? [] : testconfig.flags.slice(argsFlagIdx);
-
-	// flags to limit test time
-	if (testconfig.goConfig['testTimeout'] !== '0s') {
-		args.push('-timeout', testconfig.goConfig['testTimeout']);
-	}
-
-	const outArgs = args.slice(0);
-
-	if (targets.length > 4) {
-		outArgs.push('<long arguments omitted>');
-	} else {
-		outArgs.push(...targets);
-	}
-	args.push(...targets);
-
-	// ensure that user provided flags are appended last (allow use of -args ...)
-	if (args.indexOf('-run') > -1) {
-		removeRunFlag(userFlags);
-	}
-
-	args.push(...userFlags);
-	outArgs.push(...userFlags);
-
-	args.push(...userArgsFlags);
-	outArgs.push(...userArgsFlags);
-
-	return {
-		args,
-		outArgs,
-		tmpCoverPath: undefined
-	};
-}
-
 /**
  * Reveals the output channel in the UI.
  */
@@ -345,11 +290,4 @@ export function cancelRunningTests(): Thenable<boolean> {
 		statusBarItem.hide();
 		resolve(true);
 	});
-}
-
-function removeRunFlag(flags: string[]): void {
-	const index: number = flags.indexOf('-run');
-	if (index !== -1) {
-		flags.splice(index, 2);
-	}
 }
