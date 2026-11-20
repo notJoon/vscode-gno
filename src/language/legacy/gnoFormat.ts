@@ -128,8 +128,6 @@ export function usingCustomFormatTool(goConfig: { [key: string]: any }): boolean
 		case 'gofmt':
 			return false;
 		case 'gofumpt':
-			// TODO(rstambler): Prompt to configure setting in gopls.
-			return false;
 		case 'gofumports':
 			// TODO(rstambler): Prompt to configure setting in gopls.
 			return false;

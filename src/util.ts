@@ -21,7 +21,6 @@ import {
 	fixDriveCasingInWindows,
 	getBinPathWithPreferredGopathGorootWithExplanation,
 	getCurrentGoRoot,
-	getInferredGopath,
 	resolveHomeDir
 } from './utils/pathUtils';
 import { killProcessTree } from './utils/processUtils';
@@ -111,7 +110,6 @@ export class GoVersion {
 
 let cachedGoBinPath: string | undefined;
 let cachedGoVersion: GoVersion | undefined;
-let toolsGopath: string;
 
 // getCheckForToolsUpdatesConfig returns go.toolsManagement.checkForUpdates configuration.
 export function getCheckForToolsUpdatesConfig(gocfg: vscode.WorkspaceConfiguration) {
@@ -328,48 +326,6 @@ export function isGoPathSet(): boolean {
 	return true;
 }
 
-export function getToolsGopath(useCache = true): string {
-	if (!useCache || !toolsGopath) {
-		toolsGopath = resolveToolsGopath();
-	}
-	return toolsGopath;
-}
-
-function resolveToolsGopath(): string {
-	let toolsGopathForWorkspace = substituteEnv(getGnoConfig()['toolsGnopath'] || '');
-
-	// In case of single root
-	if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length <= 1) {
-		return resolvePath(toolsGopathForWorkspace);
-	}
-
-	// In case of multi-root, resolve ~ and ${workspaceFolder}
-	if (toolsGopathForWorkspace.startsWith('~')) {
-		toolsGopathForWorkspace = path.join(os.homedir(), toolsGopathForWorkspace.substr(1));
-	}
-	if (
-		toolsGopathForWorkspace &&
-		toolsGopathForWorkspace.trim() &&
-		!/\${workspaceFolder}|\${workspaceRoot}/.test(toolsGopathForWorkspace)
-	) {
-		return toolsGopathForWorkspace;
-	}
-
-	if (!vscode.workspace.isTrusted) {
-		return toolsGopathForWorkspace;
-	}
-
-	// If any of the folders in multi root have toolsGopath set and the workspace is trusted, use it.
-	for (const folder of vscode.workspace.workspaceFolders) {
-		let toolsGopathFromConfig = <string>getGnoConfig(folder.uri).inspect('toolsGnopath')?.workspaceFolderValue;
-		toolsGopathFromConfig = resolvePath(toolsGopathFromConfig, folder.uri.fsPath);
-		if (toolsGopathFromConfig) {
-			return toolsGopathFromConfig;
-		}
-	}
-	return toolsGopathForWorkspace;
-}
-
 // getBinPath returns the path to the tool.
 export function getBinPath(tool: string, useCache = true): string {
 	const r = getBinPathWithExplanation(tool, useCache);
@@ -387,18 +343,15 @@ export function getBinPathWithExplanation(
 	const alternateTools: { [key: string]: string } | undefined = cfg.get('alternateTools');
 	const alternateToolPath: string | undefined = alternateTools?.[tool];
 
-	const goroot = cfg.get<string>('gnoroot');
-	const gorootInSetting = goroot && resolvePath(substituteEnv(goroot));
-
 	let selectedGoPath: string | undefined;
-	if (tool === 'go' && !gorootInSetting) {
+	if (tool === 'go') {
 		selectedGoPath = getFromWorkspaceState('selectedGno')?.binpath;
 	}
 
 	return getBinPathWithPreferredGopathGorootWithExplanation(
 		tool,
-		tool === 'go' ? [] : [getToolsGopath(), getCurrentGoPath()],
-		tool === 'go' ? gorootInSetting : undefined,
+		tool === 'go' ? [] : [getCurrentGoPath()],
+		undefined,
 		selectedGoPath ?? (alternateToolPath && resolvePath(substituteEnv(alternateToolPath))),
 		useCache
 	);
@@ -417,42 +370,7 @@ export function substituteEnv(input: string): string {
 
 let currentGopath = '';
 export function getCurrentGoPath(workspaceUri?: vscode.Uri): string {
-	const activeEditorUri = vscode.window.activeTextEditor?.document.uri;
-	const currentFilePath = fixDriveCasingInWindows(activeEditorUri?.fsPath ?? '');
-	const currentRoot = (workspaceUri && workspaceUri.fsPath) || getWorkspaceFolderPath(activeEditorUri) || '';
-	const config = getGnoConfig(workspaceUri || activeEditorUri);
-
-	// Infer the GOPATH from the current root or the path of the file opened in current editor
-	// Last resort: Check for the common case where GOPATH itself is opened directly in VS Code
-	let inferredGopath: string | undefined;
-	if (config['inferGopath'] === true) {
-		inferredGopath = getInferredGopath(currentRoot) || getInferredGopath(currentFilePath);
-		if (!inferredGopath) {
-			try {
-				if (fs.statSync(path.join(currentRoot, 'src')).isDirectory()) {
-					inferredGopath = currentRoot;
-				}
-			} catch {
-				// No op
-			}
-		}
-		if (inferredGopath) {
-			// inferred GOPATH must not have go.mod in it.
-			try {
-				if (fs.existsSync(path.join(inferredGopath, 'gno.mod'))) {
-					inferredGopath = '';
-				}
-			} catch {
-				// No op
-			}
-		}
-		if (inferredGopath && process.env['GOPATH'] && inferredGopath !== process.env['GOPATH']) {
-			inferredGopath += path.delimiter + process.env['GOPATH'];
-		}
-	}
-
-	const configGopath = config['gopath'] ? resolvePath(substituteEnv(config['gopath']), currentRoot) : '';
-	currentGopath = (inferredGopath ? inferredGopath : configGopath || process.env['GOPATH']) ?? '';
+	currentGopath = process.env['GOPATH'] ?? '';
 	return currentGopath;
 }
 

@@ -8,7 +8,7 @@
 
 import { getGnoConfig, initExtensionInfo } from './config';
 import { notifyIfGeneratedFile, removeTestStatus } from './gnoCheck';
-import { setGOROOTEnvVar, toolExecutionEnvironment } from './gnoEnv';
+import { toolExecutionEnvironment } from './gnoEnv';
 import {
 	chooseGoEnvironment,
 	offerToInstallLatestGoVersion,
@@ -47,8 +47,7 @@ import {
 	updateGlobalState
 } from './stateUtils';
 import { cancelRunningTests, showTestOutput } from './testUtils';
-import { cleanupTempDir, getBinPath, getToolsGopath } from './util';
-import { clearCacheForTools } from './utils/pathUtils';
+import { cleanupTempDir, getBinPath } from './util';
 import { WelcomePanel } from './welcome';
 import vscode = require('vscode');
 import { getFormatTool } from './language/legacy/gnoFormat';
@@ -93,15 +92,6 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<ExtensionA
 
 	const cfg = getGnoConfig();
 	WelcomePanel.activate(ctx, goCtx);
-
-	const configGOROOT = getGnoConfig()['gnoroot'];
-	if (configGOROOT) {
-		// We don't support unsetting go.goroot because we don't know whether
-		// !configGOROOT case indicates the user wants to unset process.env['GOROOT']
-		// or the user wants the extension to use the current process.env['GOROOT'] value.
-		// TODO(hyangah): consider utilizing an empty value to indicate unset?
-		await setGOROOTEnvVar(configGOROOT);
-	}
 
 	// Without gno, it rejects after suggesting to install it. The rest of the
 	// extension still activates.
@@ -219,24 +209,12 @@ function addOnDidChangeConfigListeners(ctx: vscode.ExtensionContext) {
 			}
 			const updatedGoConfig = getGnoConfig();
 
-			if (e.affectsConfiguration('gno.gnoroot')) {
-				const configGOROOT = updatedGoConfig['gnoroot'];
-				if (configGOROOT) {
-					await setGOROOTEnvVar(configGOROOT);
-				}
-			}
 			if (
-				e.affectsConfiguration('gno.gnoroot') ||
 				e.affectsConfiguration('gno.alternateTools') ||
-				e.affectsConfiguration('gno.gnopath') ||
 				e.affectsConfiguration('gno.toolsEnvVars') ||
 				e.affectsConfiguration('gno.testEnvFile')
 			) {
 				void updateGoVarsFromConfig(goCtx);
-			}
-			// If there was a change in "toolsGopath" setting, then clear cache for go tools
-			if (getToolsGopath() !== getToolsGopath(false)) {
-				clearCacheForTools();
 			}
 
 			if (e.affectsConfiguration('gno.formatTool')) {

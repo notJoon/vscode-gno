@@ -6,25 +6,12 @@
 import * as vscode from 'vscode';
 
 import { CommandFactory } from '.';
-import { getGnoConfig } from '../config';
-import { getCurrentGoPath as utilGetCurrentGoPath, getWorkspaceFolderPath } from '../util';
+import { getCurrentGoPath as utilGetCurrentGoPath } from '../util';
 
 export const getCurrentGoPath: CommandFactory = () => {
 	return () => {
 		const gopath = utilGetCurrentGoPath();
-		let msg = `${gopath} is the current GNOPATH.`;
-		const wasInfered = getGnoConfig()['inferGnopath'];
-		const root = getWorkspaceFolderPath(
-			vscode.window.activeTextEditor && vscode.window.activeTextEditor.document.uri
-		);
-
-		// not only if it was configured, but if it was successful.
-		if (wasInfered && root && root.indexOf(gopath) === 0) {
-			const inferredFrom = vscode.window.activeTextEditor ? 'current folder' : 'workspace root';
-			msg += ` It is inferred from ${inferredFrom}`;
-		}
-
-		vscode.window.showInformationMessage(msg);
+		vscode.window.showInformationMessage(`${gopath} is the current GNOPATH.`);
 		return gopath;
 	};
 };

@@ -61,13 +61,6 @@ function canChooseGoEnvironment() {
 		};
 	}
 
-	if (getGnoConfig().get('gnoroot')) {
-		return {
-			ok: false,
-			reason: 'Switching Gno version when "gno.gnoroot" is set is unsupported.'
-		};
-	}
-
 	if (process.env['GNOROOT']) {
 		return {
 			ok: false,

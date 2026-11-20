@@ -52,11 +52,10 @@ map[call:true render:true runtest:true]
 
 ### `gno.formatTool`
 
-Formatter to use. When the language server is enabled, it handles formatting for both options.<br/>
+Formatter to use. When the language server is enabled, it handles formatting.<br/>
 Allowed Options:
 
 * `default`: Formats the file according to the standard Gno style.
-* `gofumpt`: Formats the file with [gofumpt](https://github.com/mvdan/gofumpt).
 
 
 Default: `"default"`
@@ -83,20 +82,6 @@ Allowed Options:
 
 
 Default: `"beside"`
-
-### `gno.gopath`
-
-Specify GOPATH here to override the one that is set as environment variable. The inferred GOPATH from workspace root overrides this, if `gno.inferGopath` is set to true.
-
-### `gno.goroot`
-
-Specifies the GOROOT to use when no environment variable is set.
-
-### `gno.inferGopath`
-
-Infer GOPATH from the workspace root. This is ignored when using Gno modules.
-
-Default: `false`
 
 ### `gno.languageServerFlags`
 
@@ -202,10 +187,6 @@ Default: `false`
 Specifies the timeout for `gno test` in Go duration format, such as `30s`.
 
 Default: `"30s"`
-
-### `gno.toolsGopath`
-
-Location to install the Gno tools that the extension depends on if you don't want them in your GOPATH.
 
 ### `gno.toolsManagement.checkForUpdates`
 

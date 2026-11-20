@@ -97,10 +97,6 @@
       "supported": "limited",
       "restrictedConfigurations": [
         "gno.alternateTools",
-        "gno.gnopath",
-        "gno.gnoroot",
-        "gno.inferGnopath",
-        "gno.toolsGnopath",
         "gno.toolsEnvVars",
         "gno.toolsManagement.go"
       ]
@@ -535,49 +531,14 @@
         "gno.formatTool": {
           "type": "string",
           "default": "default",
-          "markdownDescription": "Formatter to use. When the language server is enabled, it handles formatting for both options.",
+          "markdownDescription": "Formatter to use. When the language server is enabled, it handles formatting.",
           "scope": "resource",
           "enum": [
-            "default",
-            "gofumpt"
+            "default"
           ],
           "markdownEnumDescriptions": [
-            "Formats the file according to the standard Gno style.",
-            "Formats the file with [gofumpt](https://github.com/mvdan/gofumpt)."
+            "Formats the file according to the standard Gno style."
           ]
-        },
-        "gno.inferGopath": {
-          "type": "boolean",
-          "default": false,
-          "description": "Infer GOPATH from the workspace root. This is ignored when using Gno modules.",
-          "scope": "resource"
-        },
-        "gno.gopath": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "description": "Specify GOPATH here to override the one that is set as environment variable. The inferred GOPATH from workspace root overrides this, if `gno.inferGopath` is set to true.",
-          "scope": "machine-overridable"
-        },
-        "gno.toolsGopath": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "description": "Location to install the Gno tools that the extension depends on if you don't want them in your GOPATH.",
-          "scope": "machine-overridable"
-        },
-        "gno.goroot": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "description": "Specifies the GOROOT to use when no environment variable is set.",
-          "scope": "machine-overridable"
         },
         "gno.testOnSave": {
           "type": "boolean",

@@ -14,7 +14,7 @@ import os = require('os');
 import path = require('path');
 import { promisify } from 'util';
 
-let binPathCache: { [bin: string]: string } = {};
+const binPathCache: { [bin: string]: string } = {};
 
 export const getEnvPath = () => process.env['PATH'] || (process.platform === 'win32' ? process.env['Path'] : null);
 export const initialEnvPath = getEnvPath();
@@ -187,10 +187,6 @@ export async function dirExists(p: string): Promise<boolean> {
 	}
 }
 
-export function clearCacheForTools() {
-	binPathCache = {};
-}
-
 /**
  * Exapnds ~ to homedir in non-Windows platform
  */
@@ -199,21 +195,6 @@ export function resolveHomeDir(inputPath: string): string {
 		return inputPath;
 	}
 	return inputPath.startsWith('~') ? path.join(os.homedir(), inputPath.substr(1)) : inputPath;
-}
-
-// Walks up given folder path to return the closest ancestor that has `src` as a child
-export function getInferredGopath(folderPath: string): string | undefined {
-	if (!folderPath) {
-		return;
-	}
-
-	const dirs = folderPath.toLowerCase().split(path.sep);
-
-	// find src directory closest to given folder path
-	const srcIdx = dirs.lastIndexOf('src');
-	if (srcIdx > 0) {
-		return folderPath.substr(0, dirs.slice(0, srcIdx).join(path.sep).length);
-	}
 }
 
 /**

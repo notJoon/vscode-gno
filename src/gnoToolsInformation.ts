@@ -5,15 +5,6 @@ import semver = require('semver');
 import { Tool } from './gnoTools';
 
 export const allToolsInformation: { [key: string]: Tool } = {
-	gofumpt: {
-		name: 'gofumpt',
-		importPath: 'mvdan.cc/gofumpt',
-		modulePath: 'mvdan.cc/gofumpt',
-		replacedByGopls: true,
-		isImportant: false,
-		description: 'Formatter',
-		defaultVersion: 'v0.7.0'
-	},
 	gnopls: {
 		name: 'gnopls',
 		importPath: 'github.com/gnoverse/gnopls',

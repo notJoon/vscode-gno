@@ -7,9 +7,7 @@
 
 import vscode = require('vscode');
 import { getGnoConfig } from './config';
-import { getCurrentGoPath, getToolsGopath, resolvePath, substituteEnv } from './util';
-import { dirExists } from './utils/pathUtils';
-import { getFromGlobalState, updateGlobalState } from './stateUtils';
+import { getCurrentGoPath, resolvePath, substituteEnv } from './util';
 import { outputChannel } from './gnoStatus';
 
 // toolInstallationEnvironment returns the environment in which tools should
@@ -17,27 +15,9 @@ import { outputChannel } from './gnoStatus';
 export function toolInstallationEnvironment(): NodeJS.Dict<string> {
 	const env = newEnvironment();
 
-	// If the go.toolsGopath is set, use its value as the GOPATH for `go` processes.
-	// Else use the Current Gopath
-	let toolsGopath = getToolsGopath();
-	if (toolsGopath) {
-		// User has explicitly chosen to use toolsGopath, so ignore GOBIN.
-		env['GOBIN'] = '';
-	} else {
-		toolsGopath = getCurrentGoPath();
-	}
+	const toolsGopath = getCurrentGoPath();
 	if (!toolsGopath) {
-		const msg = 'Cannot install Go tools. Set either go.gopath or go.toolsGopath in settings.';
-		vscode.window.showInformationMessage(msg, 'Open User Settings', 'Open Workspace Settings').then((selected) => {
-			switch (selected) {
-				case 'Open User Settings':
-					vscode.commands.executeCommand('workbench.action.openGlobalSettings');
-					break;
-				case 'Open Workspace Settings':
-					vscode.commands.executeCommand('workbench.action.openWorkspaceSettings');
-					break;
-			}
-		});
+		vscode.window.showInformationMessage('Cannot install Go tools. Set the GOPATH environment variable.');
 		return {};
 	}
 	env['GOPATH'] = toolsGopath;
@@ -101,45 +81,4 @@ function newEnvironment(uri?: vscode.Uri, addProcessEnv = true): NodeJS.Dict<str
 		env['HTTPS_PROXY'] = httpProxy;
 	}
 	return env;
-}
-
-// set GOROOT env var. If necessary, shows a warning.
-export async function setGOROOTEnvVar(configGOROOT: string) {
-	if (!configGOROOT) {
-		return;
-	}
-	const goroot = configGOROOT ? resolvePath(substituteEnv(configGOROOT)) : undefined;
-
-	const currentGOROOT = process.env['GOROOT'];
-	if (goroot === currentGOROOT) {
-		return;
-	}
-	if (!(await dirExists(goroot ?? ''))) {
-		vscode.window.showWarningMessage(`gno.gnoroot setting is ignored. ${goroot} is not a valid GNOROOT directory.`);
-		return;
-	}
-	const neverAgain = { title: "Don't Show Again" };
-	const ignoreGOROOTSettingWarningKey = 'ignoreGOROOTSettingWarning';
-	const ignoreGOROOTSettingWarning = getFromGlobalState(ignoreGOROOTSettingWarningKey);
-	if (!ignoreGOROOTSettingWarning) {
-		vscode.window
-			.showInformationMessage(
-				`"gno.gnoroot" setting (${goroot}) will be applied and set the GNOROOT environment variable.`,
-				neverAgain
-			)
-			.then((result) => {
-				if (result === neverAgain) {
-					updateGlobalState(ignoreGOROOTSettingWarningKey, true);
-				}
-			});
-	}
-
-	outputChannel.debug(
-		`setting GNOROOT = ${goroot} (old value: ${currentGOROOT}) because "gno.gnoroot": "${configGOROOT}"`
-	);
-	if (goroot) {
-		process.env['GOROOT'] = goroot;
-	} else {
-		delete process.env.GOROOT;
-	}
 }
