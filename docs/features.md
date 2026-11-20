@@ -7,26 +7,28 @@ This document describes the features supported by this extension.
 - [Highlighting](#highlighting)
 - [Formatting](#formatting)
 - [IntelliSense](#intellisense)
-- [Transpile](#transpile)
-- [Clean](#clean)
-- [Gno:Test](#gno-test)
+- [Gno Test](#gno-test)
+    * [Test Package](#test-package)
     * [Test File](#test-file)
     * [Test Function](#test-function)
     * [Test At Cursor](#test-at-cursor)
-    * [Test All Packages In Workspace](#test-all-packages-in-workspace)
 - [Debugging](#debugging)
+- [gnodev](#gnodev)
+- [Render Preview](#render-preview)
+- [Networks](#networks)
+- [Add Package](#add-package)
+- [Call And Query Realms](#call-and-query-realms)
 - [Mod Init](#mod-init)
-- [Maketx](#maketx)
 - [Find References](#find-references)
 - [Find Implementations](#find-implementations)
-- [Go To Symbol](#go-to-symbol)
+- [Code Navigation](#code-navigation)
+    * [Go to definition](#go-to-definition)
+- [Package Source Links](#package-source-links)
 - [Call Hierarchy](#call-hierarchy)
 - [Toggle Between Code and Tests](#toggle-between-code-and-tests)
 - [Add Import](#add-import)
 - [Rename Symbol](#rename-symbol)
 - [Refactor](#refactor)
-- [Auto Install Missing Tools](#auto-install-missing-tools)
-- [Lint](#lint)
 
 ## Highlighting
 
@@ -38,9 +40,9 @@ The default syntax highlighting for gno files is implemented in Visual Studio Co
 
 Format code and organize imports, either manually or on save.
 
-The extension formats `gno` code, organizes imports, and removes unused imports by default. For different behavior.
+The extension formats `gno` code, organizes imports, and removes unused imports by default.
 - **Organizing imports**
-When organizing imports, the imported packages are grouped in the default `gnoimports` style.
+When organizing imports, the imported packages are grouped in the `goimports` style.
 
 <div style="text-align: center;"><img src="images/formated.gif" alt="" style="width: 100%"> </div>
 
@@ -52,14 +54,6 @@ When organizing imports, the imported packages are grouped in the default `gnoim
 
 <div style="text-align: center;"><img src="images/Intellisense.gif" alt="" style="width: 100%"> </div>
 
-## Transpile
-
-Supports compiling or transpiling Gno code into executable formats, enabling easier deployment or testing.
-
-## Clean
-
-Removes unnecessary or temporary files generated during development. This helps to maintain a tidy workspace.
-
 ## Gno Test
 
 ### Test Package
@@ -68,15 +62,15 @@ Runs all unit tests in a specified Gno package to verify the functionality of th
 
 ### Test File
 
-Executes all tests within a specific `gno` test 
+Executes all tests within a specific `gno` test file.
 
-#### Test Function 
+### Test Function
 
 Test a specific function
 
 <div style="text-align: center;"><img src="images/test-function.gif" alt="" style="width: 100%"> </div>
 
-#### Test At Cursor 
+### Test At Cursor
 
 Executes the test case where the cursor is currently placed in the code editor.
 
@@ -105,13 +99,67 @@ Limitations of the underlying debugger:
 - Expressions are limited to identifiers, selectors, indexes and literals (no calls or operators).
 - Locals are found from the source of the current function and values cannot be expanded.
 
-## Maketx - Add Package
+## gnodev
 
-Publish Gno package/realm to the chain. `gnokey` needs to be installed for this feature to work.
+Run a local [gnodev](https://docs.gno.land/resources/gnodev) node from the editor. Click the gnodev button in the editor title bar of a Gno file, or run **Gno: Start gnodev**. gnodev loads the package or workspace of the file and reloads it when you save.
 
-## Mod init 
+gnoweb opens in a panel beside the editor. Its title bar has buttons to reload the packages, reset the realms state, and open gnoweb in your browser. Closing the panel stops gnodev.
 
-Create `gno.mod` file
+Related settings:
+- `gno.gnodev.openBrowser` sets where gnoweb opens.
+- `gno.gnodev.flags` passes extra flags to gnodev.
+- `gno.gnodev.displayButton` shows or hides the title bar button.
+
+## Render Preview
+
+Click **preview render** above `func Render` to see the output of your realm in gnoweb. gnodev starts if it is not running, and the preview updates every time you save. Click **preview render path...** to pass a path to `Render`.
+
+<div style="text-align: center;"><img src="images/render-preview.gif" alt="Preview the Render output of a realm and update it on save" style="width: 100%"> </div>
+
+## Networks
+
+Transactions and queries go to the network selected with `gno.network`. The default `local` network is the node started by gnodev. Click the network name in the status bar, or run **Gno: Select Network**, to switch.
+
+Add your own networks in `gno.networks`:
+
+```json
+"gno.networks": {
+  "local": {
+    "remote": "127.0.0.1:26657",
+    "chainId": "dev",
+    "gnoweb": "http://127.0.0.1:8888"
+  },
+  "mynet": {
+    "remote": "https://rpc.example.com:443",
+    "chainId": "mynet",
+    "gnoweb": "https://example.com"
+  }
+}
+```
+
+## Add Package
+
+Publish Gno package/realm to the chain. The transaction is sent to the network selected with `gno.network`. `gnokey` needs to be installed for this feature to work.
+
+## Call And Query Realms
+
+Click **call** above an exported crossing function, `func F(cur realm, ...)`, to call it with `gnokey maketx call`. The extension asks for the arguments, the coins to send, and the key that signs the transaction. The result appears in the Output panel.
+
+<div style="text-align: center;"><img src="images/call-realm.gif" alt="Call a realm function and see the new state in the Render preview" style="width: 100%"> </div>
+
+The same actions are in the Command Palette and the editor context menu:
+- **Gno: Call Realm Function** calls a crossing function of the current realm.
+- **Gno: Run Script On Chain** runs `func main` of the current file with `gnokey maketx run`.
+- **Gno: Evaluate Expression In Realm** evaluates an expression such as `Count()` with `vm/qeval`.
+- **Gno: Query Render** shows the `Render` output of the realm with `vm/qrender`.
+
+<div style="text-align: center;"><img src="images/eval-realm.gif" alt="Evaluate an expression in a realm" style="width: 100%"> </div>
+
+`gnokey` needs to be installed, with your key in its keybase.
+
+## Mod Init
+
+Create a `gnomod.toml` file.
 
 ## Find References
 
@@ -121,7 +169,7 @@ Find or go to the references of a symbol.
 
 Find the concrete types that implement a given interface.
 
-<div style="text-align: center;"><img src="images/find-implementation.gif" alt="Go to implementations for Server" style="width: 100%"> </div>
+<div style="text-align: center;"><img src="images/find-implementation.gif" alt="Go to implementations of an interface in memeland.gno" style="width: 100%"> </div>
 
 
 
@@ -131,6 +179,9 @@ Find the concrete types that implement a given interface.
 
 Jump to or peek a symbol's declaration.
 
+## Package Source Links
+
+Import paths and hover links of packages on chain, such as `gno.land/p/nt/avl/v0`, open the package source on gnoweb instead of pkg.go.dev. The links use the `gnoweb` URL of the selected network, or https://gno.land when it is not set.
 
 ## Call Hierarchy
 
@@ -140,23 +191,21 @@ Show all calls from or to a function.
 
 ## Toggle Between Code And Tests
 
-Quickly toggle between a file and its corresponding test file by using the [`Gno: Toggle Test File`](commands.md#go-toggle-test-file) command.
+Quickly toggle between a file and its corresponding test file by using the [`Gno: Toggle Test File`](commands.md#gno-toggle-test-file) command.
 
-<div style="text-align: center;"><img src="images/toggle-between-code-and-tests.gif" alt="Toggle between reverse.go and reverse_test.go" style="width: 100%"> </div>
+<div style="text-align: center;"><img src="images/toggle-between-code-and-tests.gif" alt="Toggle between memeland.gno and its test file" style="width: 100%"> </div>
 
 ## Add Import
 
-The extension organizes imports automatically and can add missing imports if the package is present in your module cache already. 
+The extension organizes imports automatically and can add missing imports.
 
 
 
-### [Rename symbol](https://code.visualstudio.com/docs/editor/refactoring#_rename-symbol)
+## [Rename Symbol](https://code.visualstudio.com/docs/editor/refactoring#_rename-symbol)
 
 Rename all occurrences of a symbol in your workspace.
 
-**Note**: For undo after rename to work on Windows, you need to have `diff` tool on your `PATH`.
-
-This feature is not available if you are using  **without** [`gnopls`](https://github.com/gnoverse/gnopls), the Go language server.
+Requires the [`gnopls`](https://github.com/gnoverse/gnopls) language server (`gno.useLanguageServer`).
 
 <div style="text-align: center;"><img src="images/rename-symbol.gif" alt="Rename an exported variable in gno" style="width: 100%"> </div>
 
