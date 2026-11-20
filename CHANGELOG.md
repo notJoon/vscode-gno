@@ -21,6 +21,12 @@ Entries for 1.0.1 and earlier come from upstream [gnoverse/vscode-gno](https://g
 * **Install Gno Language Server** in the status bar menu did not install gnopls ([#24](https://github.com/notJoon/vscode-gno/pull/24))
 * **Gno: Start language server's maintainer interface** failed with `command 'gopls.start_debugging' not found`. It now opens the gnopls server information page ([#24](https://github.com/notJoon/vscode-gno/pull/24))
 
+
+### Miscellaneous
+
+* remove the Go settings `gno.gopath`, `gno.inferGopath`, `gno.toolsGopath`, `gno.goroot` and the `gofumpt` option of `gno.formatTool`. `GOPATH` now comes only from the environment ([#25](https://github.com/notJoon/vscode-gno/pull/25))
+* delete code left over from vscode-go that nothing reaches, such as the process picker, the `gotests` test generation, testify suite support, the legacy formatter and the build and vet diagnostic collections. With `gno.useLanguageServer` off, no formatter is registered, where formatting failed with an error before ([#25](https://github.com/notJoon/vscode-gno/pull/25))
+
 ## 1.0.2 (2026-11-03)
 
 

@@ -36,7 +36,6 @@ var tools = []struct {
 }{
 	// TODO: auto-generate based on allTools.ts.in.
 	{"github.com/gnoverse/gnopls", "", true, nil},
-	{"mvdan.cc/gofumpt", "", true, nil},
 }
 
 // pickVersion returns the version to install based on the supported

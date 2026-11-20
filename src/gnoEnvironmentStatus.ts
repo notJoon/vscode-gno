@@ -61,13 +61,6 @@ function canChooseGoEnvironment() {
 		};
 	}
 
-	if (getGnoConfig().get('gnoroot')) {
-		return {
-			ok: false,
-			reason: 'Switching Gno version when "gno.gnoroot" is set is unsupported.'
-		};
-	}
-
 	if (process.env['GNOROOT']) {
 		return {
 			ok: false,
@@ -419,13 +412,6 @@ export async function updateIntegratedTerminal(terminal: vscode.Terminal): Promi
  */
 export function getSelectedGo(): GoEnvironmentOption {
 	return getFromWorkspaceState('selectedGno');
-}
-
-/**
- * return reference to the statusbar item
- */
-export function getGoEnvironmentStatusbarItem(): vscode.StatusBarItem {
-	return goEnvStatusbarItem;
 }
 
 export function formatGoVersion(version?: GoVersion): string {

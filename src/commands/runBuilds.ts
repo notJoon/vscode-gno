@@ -15,10 +15,8 @@ export const runBuilds: CommandFactory =
 			return;
 		}
 
-		const { buildDiagnosticCollection, lintDiagnosticCollection, vetDiagnosticCollection } = goCtx;
-		buildDiagnosticCollection?.clear();
+		const { lintDiagnosticCollection } = goCtx;
 		lintDiagnosticCollection?.clear();
-		vetDiagnosticCollection?.clear();
 		check(goCtx, document.uri, goConfig)
 			.then((results) => {
 				results.forEach((result) => {

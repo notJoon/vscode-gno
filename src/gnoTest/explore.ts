@@ -18,7 +18,7 @@ import {
 	WorkspaceFoldersChangeEvent
 } from 'vscode';
 import vscode = require('vscode');
-import { GoDocumentSymbolProvider } from '../gnoDocumentSymbols';
+import { GoplsDocumentSymbolProvider } from '../gnoDocumentSymbols';
 import { outputChannel } from '../gnoStatus';
 import { dispose, disposeIfEmpty, findItem, GoTest, isInTest, Workspace } from './utils';
 import { GoTestResolver, ProvideSymbols } from './resolve';
@@ -36,7 +36,7 @@ export class GoTestExplorer {
 		if (!isVscodeTestingAPIAvailable) throw new Error('VSCode Testing API is unavailable');
 
 		const ctrl = vscode.tests.createTestController('gno', 'Gno');
-		const symProvider = GoDocumentSymbolProvider(goCtx, true);
+		const symProvider = new GoplsDocumentSymbolProvider(goCtx);
 		const inst = new this(goCtx, workspace, ctrl, context.workspaceState, (doc) =>
 			symProvider.provideDocumentSymbols(doc)
 		);

@@ -11,25 +11,25 @@ import { CommandFactory } from '.';
 import { getGnoConfig, getGnoplsConfig } from '../config';
 import { inspectGoToolVersion } from '../gnoInstallTools';
 import { getConfiguredTools } from '../gnoTools';
-import { getBinPath, getCurrentGoPath, getGoEnv, getGoVersion, getToolsGopath } from '../util';
+import { getBinPath, getCurrentGoPath, getGoEnv, getGoVersion } from '../util';
 import { getEnvPath, initialEnvPath, getCurrentGoRoot } from '../utils/pathUtils';
 
 export const getConfiguredGoTools: CommandFactory = () => {
 	return async () => {
 		// create an untitled markdown document.
 		const buf = [];
-		// Tool's path search is done by getBinPathWithPreferredGopath
-		// which searches places in the following order
-		// 1) absolute path for the alternateTool
-		// 2) GOBIN
-		// 3) toolsGopath
-		// 4) gopath
-		// 5) GOROOT
-		// 6) PATH
+		/**
+		 * Tool's path search is done by getBinPathWithPreferredGopathGorootWithExplanation
+		 * which searches places in the following order
+		 * 1) absolute path for the alternateTool
+		 * 2) GOBIN
+		 * 3) gopath
+		 * 4) GOROOT
+		 * 5) PATH
+		 */
 		buf.push('# Tools Configuration\n');
 		buf.push('\n## Environment\n');
 		buf.push('GNOBIN: ' + process.env['GOBIN']);
-		buf.push('toolsGnopath: ' + getToolsGopath());
 		buf.push('gnopath: ' + getCurrentGoPath());
 		buf.push('GNOROOT: ' + getCurrentGoRoot());
 		const currentEnvPath = getEnvPath();

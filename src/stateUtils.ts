@@ -28,10 +28,6 @@ export function setGlobalState(state: vscode.Memento) {
 	globalState = state;
 }
 
-export function getGlobalState() {
-	return globalState;
-}
-
 export const resetGlobalState: CommandFactory = () => () => {
 	void resetStateQuickPick(globalState, updateGlobalState);
 };
@@ -52,10 +48,6 @@ export function updateWorkspaceState(key: string, value: any) {
 
 export function setWorkspaceState(state: vscode.Memento) {
 	workspaceState = state;
-}
-
-export function getWorkspaceState(): vscode.Memento {
-	return workspaceState;
 }
 
 export const resetWorkspaceState: CommandFactory = () => () => {

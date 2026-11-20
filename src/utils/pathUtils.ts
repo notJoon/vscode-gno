@@ -14,7 +14,7 @@ import os = require('os');
 import path = require('path');
 import { promisify } from 'util';
 
-let binPathCache: { [bin: string]: string } = {};
+const binPathCache: { [bin: string]: string } = {};
 
 export const getEnvPath = () => process.env['PATH'] || (process.platform === 'win32' ? process.env['Path'] : null);
 export const initialEnvPath = getEnvPath();
@@ -38,29 +38,10 @@ export function getBinPathFromEnvVar(
 	return null;
 }
 
-export function getBinPathWithPreferredGopathGoroot(
-	toolName: string,
-	preferredGopaths: string[],
-	preferredGoroot?: string,
-	alternateTool?: string,
-	useCache = true
-): string {
-	const r = getBinPathWithPreferredGopathGorootWithExplanation(
-		toolName,
-		preferredGopaths,
-		preferredGoroot,
-		alternateTool,
-		useCache
-	);
-	return r.binPath;
-}
-
-// Is same as getBinPathWithPreferredGopathGoroot, but returns why the
-// returned path was chosen.
+/** Returns the path of the tool binary and why that path was chosen. */
 export function getBinPathWithPreferredGopathGorootWithExplanation(
 	toolName: string,
 	preferredGopaths: string[],
-	preferredGoroot?: string,
 	alternateTool?: string,
 	useCache = true
 ): { binPath: string; why?: string } {
@@ -69,7 +50,7 @@ export function getBinPathWithPreferredGopathGorootWithExplanation(
 		return { binPath: alternateTool, why: 'alternateTool' };
 	}
 
-	// FIXIT: this cache needs to be invalidated when go.goroot or go.alternateTool is changed.
+	/** FIXIT: this cache needs to be invalidated when gno.alternateTools is changed. */
 	if (useCache && binPathCache[toolName]) {
 		return { binPath: binPathCache[toolName], why: 'cached' };
 	}
@@ -100,7 +81,7 @@ export function getBinPathWithPreferredGopathGorootWithExplanation(
 	}
 
 	// Check GOROOT (go, gofmt, godoc would be found here)
-	const pathFromGoRoot = getBinPathFromEnvVar(binname, preferredGoroot || getCurrentGoRoot(), true);
+	const pathFromGoRoot = getBinPathFromEnvVar(binname, getCurrentGoRoot(), true);
 	if (pathFromGoRoot) {
 		binPathCache[toolName] = pathFromGoRoot;
 		return { binPath: pathFromGoRoot, why: found('gnoroot') };
@@ -170,14 +151,6 @@ export function executableFileExists(filePath: string): boolean {
 	return exists;
 }
 
-export function fileExists(filePath: string): boolean {
-	try {
-		return fs.statSync(filePath).isFile();
-	} catch {
-		return false;
-	}
-}
-
 export async function dirExists(p: string): Promise<boolean> {
 	try {
 		const stat = promisify(fs.stat);
@@ -185,10 +158,6 @@ export async function dirExists(p: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
-}
-
-export function clearCacheForTools() {
-	binPathCache = {};
 }
 
 /**
@@ -199,54 +168,6 @@ export function resolveHomeDir(inputPath: string): string {
 		return inputPath;
 	}
 	return inputPath.startsWith('~') ? path.join(os.homedir(), inputPath.substr(1)) : inputPath;
-}
-
-// Walks up given folder path to return the closest ancestor that has `src` as a child
-export function getInferredGopath(folderPath: string): string | undefined {
-	if (!folderPath) {
-		return;
-	}
-
-	const dirs = folderPath.toLowerCase().split(path.sep);
-
-	// find src directory closest to given folder path
-	const srcIdx = dirs.lastIndexOf('src');
-	if (srcIdx > 0) {
-		return folderPath.substr(0, dirs.slice(0, srcIdx).join(path.sep).length);
-	}
-}
-
-/**
- * Returns the workspace in the given Gopath to which given directory path belongs to
- * @param gopath string Current Gopath. Can be ; or : separated (as per os) to support multiple paths
- * @param currentFileDirPath string
- */
-export function getCurrentGoWorkspaceFromGOPATH(gopath: string | undefined, currentFileDirPath: string): string {
-	if (!gopath) {
-		return '';
-	}
-	const workspaces: string[] = gopath.split(path.delimiter);
-	let currentWorkspace = '';
-	currentFileDirPath = fixDriveCasingInWindows(currentFileDirPath);
-
-	// Find current workspace by checking if current file is
-	// under any of the workspaces in $GOPATH
-	for (const workspace of workspaces) {
-		const possibleCurrentWorkspace = path.join(workspace, 'src');
-		if (
-			currentFileDirPath.startsWith(possibleCurrentWorkspace) ||
-			(process.platform === 'win32' &&
-				currentFileDirPath.toLowerCase().startsWith(possibleCurrentWorkspace.toLowerCase()))
-		) {
-			// In case of nested workspaces, (example: both /Users/me and /Users/me/src/a/b/c are in $GOPATH)
-			// both parent & child workspace in the nested workspaces pair can make it inside the above if block
-			// Therefore, the below check will take longer (more specific to current file) of the two
-			if (possibleCurrentWorkspace.length > currentWorkspace.length) {
-				currentWorkspace = currentFileDirPath.substr(0, possibleCurrentWorkspace.length);
-			}
-		}
-	}
-	return currentWorkspace;
 }
 
 // Workaround for issue in https://github.com/Microsoft/vscode/issues/9448#issuecomment-244804026
@@ -269,20 +190,4 @@ export function getToolFromToolPath(toolPath: string): string | undefined {
 		tool = tool.substr(0, tool.length - 4);
 	}
 	return tool;
-}
-
-/**
- * Returns output with relative filepaths expanded using the provided directory
- * @param output
- * @param cwd
- */
-export function expandFilePathInOutput(output: string, cwd: string): string {
-	const lines = output.split('\n');
-	for (let i = 0; i < lines.length; i++) {
-		const matches = lines[i].match(/\s*(\S+\.go):(\d+):/);
-		if (matches && matches[1] && !path.isAbsolute(matches[1])) {
-			lines[i] = lines[i].replace(matches[1], path.join(cwd, matches[1]));
-		}
-	}
-	return lines.join('\n');
 }

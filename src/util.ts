@@ -21,7 +21,6 @@ import {
 	fixDriveCasingInWindows,
 	getBinPathWithPreferredGopathGorootWithExplanation,
 	getCurrentGoRoot,
-	getInferredGopath,
 	resolveHomeDir
 } from './utils/pathUtils';
 import { killProcessTree } from './utils/processUtils';
@@ -111,17 +110,10 @@ export class GoVersion {
 
 let cachedGoBinPath: string | undefined;
 let cachedGoVersion: GoVersion | undefined;
-let toolsGopath: string;
 
 // getCheckForToolsUpdatesConfig returns go.toolsManagement.checkForUpdates configuration.
 export function getCheckForToolsUpdatesConfig(gocfg: vscode.WorkspaceConfiguration) {
 	return gocfg.get('toolsManagement.checkForUpdates') as string;
-}
-
-export function byteOffsetAt(document: vscode.TextDocument, position: vscode.Position): number {
-	const offset = document.offsetAt(position);
-	const text = document.getText();
-	return Buffer.byteLength(text.substr(0, offset));
 }
 
 export interface Prelude {
@@ -305,71 +297,6 @@ export async function getGoEnv(cwd?: string): Promise<string> {
 	return stdout;
 }
 
-/**
- * Returns boolean indicating if GOPATH is set or not
- * If not set, then prompts user to do set GOPATH
- */
-export function isGoPathSet(): boolean {
-	if (!getCurrentGoPath()) {
-		// TODO(hyangah): is it still possible after go1.8? (https://golang.org/doc/go1.8#gopath)
-		vscode.window
-			.showInformationMessage(
-				'Set GNOPATH environment variable and restart VS Code or set GNOPATH in Workspace settings',
-				'Set GNOPATH in Workspace Settings'
-			)
-			.then((selected) => {
-				if (selected === 'Set GNOPATH in Workspace Settings') {
-					vscode.commands.executeCommand('workbench.action.openWorkspaceSettings');
-				}
-			});
-		return false;
-	}
-
-	return true;
-}
-
-export function getToolsGopath(useCache = true): string {
-	if (!useCache || !toolsGopath) {
-		toolsGopath = resolveToolsGopath();
-	}
-	return toolsGopath;
-}
-
-function resolveToolsGopath(): string {
-	let toolsGopathForWorkspace = substituteEnv(getGnoConfig()['toolsGnopath'] || '');
-
-	// In case of single root
-	if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length <= 1) {
-		return resolvePath(toolsGopathForWorkspace);
-	}
-
-	// In case of multi-root, resolve ~ and ${workspaceFolder}
-	if (toolsGopathForWorkspace.startsWith('~')) {
-		toolsGopathForWorkspace = path.join(os.homedir(), toolsGopathForWorkspace.substr(1));
-	}
-	if (
-		toolsGopathForWorkspace &&
-		toolsGopathForWorkspace.trim() &&
-		!/\${workspaceFolder}|\${workspaceRoot}/.test(toolsGopathForWorkspace)
-	) {
-		return toolsGopathForWorkspace;
-	}
-
-	if (!vscode.workspace.isTrusted) {
-		return toolsGopathForWorkspace;
-	}
-
-	// If any of the folders in multi root have toolsGopath set and the workspace is trusted, use it.
-	for (const folder of vscode.workspace.workspaceFolders) {
-		let toolsGopathFromConfig = <string>getGnoConfig(folder.uri).inspect('toolsGnopath')?.workspaceFolderValue;
-		toolsGopathFromConfig = resolvePath(toolsGopathFromConfig, folder.uri.fsPath);
-		if (toolsGopathFromConfig) {
-			return toolsGopathFromConfig;
-		}
-	}
-	return toolsGopathForWorkspace;
-}
-
 // getBinPath returns the path to the tool.
 export function getBinPath(tool: string, useCache = true): string {
 	const r = getBinPathWithExplanation(tool, useCache);
@@ -387,26 +314,17 @@ export function getBinPathWithExplanation(
 	const alternateTools: { [key: string]: string } | undefined = cfg.get('alternateTools');
 	const alternateToolPath: string | undefined = alternateTools?.[tool];
 
-	const goroot = cfg.get<string>('gnoroot');
-	const gorootInSetting = goroot && resolvePath(substituteEnv(goroot));
-
 	let selectedGoPath: string | undefined;
-	if (tool === 'go' && !gorootInSetting) {
+	if (tool === 'go') {
 		selectedGoPath = getFromWorkspaceState('selectedGno')?.binpath;
 	}
 
 	return getBinPathWithPreferredGopathGorootWithExplanation(
 		tool,
-		tool === 'go' ? [] : [getToolsGopath(), getCurrentGoPath()],
-		tool === 'go' ? gorootInSetting : undefined,
+		tool === 'go' ? [] : [getCurrentGoPath()],
 		selectedGoPath ?? (alternateToolPath && resolvePath(substituteEnv(alternateToolPath))),
 		useCache
 	);
-}
-
-export function getFileArchive(document: vscode.TextDocument): string {
-	const fileContents = document.getText();
-	return document.fileName + '\n' + Buffer.byteLength(fileContents, 'utf8') + '\n' + fileContents;
 }
 
 export function substituteEnv(input: string): string {
@@ -415,53 +333,17 @@ export function substituteEnv(input: string): string {
 	});
 }
 
-let currentGopath = '';
-export function getCurrentGoPath(workspaceUri?: vscode.Uri): string {
-	const activeEditorUri = vscode.window.activeTextEditor?.document.uri;
-	const currentFilePath = fixDriveCasingInWindows(activeEditorUri?.fsPath ?? '');
-	const currentRoot = (workspaceUri && workspaceUri.fsPath) || getWorkspaceFolderPath(activeEditorUri) || '';
-	const config = getGnoConfig(workspaceUri || activeEditorUri);
-
-	// Infer the GOPATH from the current root or the path of the file opened in current editor
-	// Last resort: Check for the common case where GOPATH itself is opened directly in VS Code
-	let inferredGopath: string | undefined;
-	if (config['inferGopath'] === true) {
-		inferredGopath = getInferredGopath(currentRoot) || getInferredGopath(currentFilePath);
-		if (!inferredGopath) {
-			try {
-				if (fs.statSync(path.join(currentRoot, 'src')).isDirectory()) {
-					inferredGopath = currentRoot;
-				}
-			} catch {
-				// No op
-			}
-		}
-		if (inferredGopath) {
-			// inferred GOPATH must not have go.mod in it.
-			try {
-				if (fs.existsSync(path.join(inferredGopath, 'gno.mod'))) {
-					inferredGopath = '';
-				}
-			} catch {
-				// No op
-			}
-		}
-		if (inferredGopath && process.env['GOPATH'] && inferredGopath !== process.env['GOPATH']) {
-			inferredGopath += path.delimiter + process.env['GOPATH'];
-		}
-	}
-
-	const configGopath = config['gopath'] ? resolvePath(substituteEnv(config['gopath']), currentRoot) : '';
-	currentGopath = (inferredGopath ? inferredGopath : configGopath || process.env['GOPATH']) ?? '';
-	return currentGopath;
+export function getCurrentGoPath(): string {
+	return process.env['GOPATH'] ?? '';
 }
 
 export function getModuleCache(): string | undefined {
 	if (process.env['GOMODCACHE']) {
 		return process.env['GOMODCACHE'];
 	}
-	if (currentGopath) {
-		return path.join(currentGopath.split(path.delimiter)[0], 'pkg', 'mod');
+	const gopath = getCurrentGoPath();
+	if (gopath) {
+		return path.join(gopath.split(path.delimiter)[0], 'pkg', 'mod');
 	}
 }
 
@@ -737,15 +619,7 @@ export function handleDiagnosticErrors(
 	diagnosticMap.forEach((newDiagnostics, file) => {
 		const fileUri = vscode.Uri.parse(file);
 
-		const { buildDiagnosticCollection, lintDiagnosticCollection, vetDiagnosticCollection, languageClient } = goCtx;
-		if (diagnosticCollection === buildDiagnosticCollection) {
-			// If there are lint/vet warnings on current file, remove the ones co-inciding with the new build errors
-			removeDuplicateDiagnostics(lintDiagnosticCollection, fileUri, newDiagnostics);
-			removeDuplicateDiagnostics(vetDiagnosticCollection, fileUri, newDiagnostics);
-		} else if (buildDiagnosticCollection && buildDiagnosticCollection.has(fileUri)) {
-			// If there are build errors on current file, ignore the new lint/vet warnings co-inciding with them
-			newDiagnostics = deDupeDiagnostics(buildDiagnosticCollection.get(fileUri)!.slice(), newDiagnostics);
-		}
+		const { languageClient } = goCtx;
 		// If there are errors from the language client that are on the current file, ignore the warnings co-inciding
 		// with them.
 		if (languageClient && languageClient.diagnostics?.has(fileUri)) {
@@ -771,14 +645,11 @@ export function removeDuplicateDiagnostics(
 
 /**
  * Removes any diagnostics in otherDiagnostics, where there is a diagnostic in
- * buildDiagnostics on the same line.
+ * keep on the same line.
  */
-function deDupeDiagnostics(
-	buildDiagnostics: vscode.Diagnostic[],
-	otherDiagnostics: vscode.Diagnostic[]
-): vscode.Diagnostic[] {
-	const buildDiagnosticsLines = buildDiagnostics.map((x) => x.range.start.line);
-	return otherDiagnostics.filter((x) => buildDiagnosticsLines.indexOf(x.range.start.line) === -1);
+function deDupeDiagnostics(keep: vscode.Diagnostic[], otherDiagnostics: vscode.Diagnostic[]): vscode.Diagnostic[] {
+	const keepLines = keep.map((x) => x.range.start.line);
+	return otherDiagnostics.filter((x) => keepLines.indexOf(x.range.start.line) === -1);
 }
 
 function mapSeverityToVSCodeSeverity(sev: string): vscode.DiagnosticSeverity {
@@ -858,11 +729,6 @@ export const timeDay = timeHour * 24;
 // daysBetween returns the number of days between a and b.
 export function daysBetween(a: Date, b: Date): number {
 	return msBetween(a, b) / timeDay;
-}
-
-// minutesBetween returns the number of minutes between a and b.
-export function minutesBetween(a: Date, b: Date): number {
-	return msBetween(a, b) / timeMinute;
 }
 
 export function msBetween(a: Date, b: Date): number {
