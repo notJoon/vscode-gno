@@ -16,6 +16,10 @@ Entries for 1.0.1 and earlier come from upstream [gnoverse/vscode-gno](https://g
 * Gno Add Package To Chain shows why a deploy failed, such as `package already exists`, as an error instead of an information message with the exit code ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 * the Gno Add Package To Chain editor context menu entry never showed, as `gno.editorContextMenuCommands.addPackage` was shadowed by the `gno.editorContextMenuCommands` object. It is now a property of that object ([#7](https://github.com/notJoon/vscode-gno/issues/7))
 * **Gno: Preview Render** previewed the realm of the closest `gnomod.toml` for a file in a subdirectory of it, such as `gno.land/r/demo/foo` for `foo/sub/x.gno`, instead of its own package `gno.land/r/demo/foo/sub` ([#7](https://github.com/notJoon/vscode-gno/issues/7))
+* gnopls commands, such as code actions and `gnopls.tidy`, never reached the language server and did nothing ([#24](https://github.com/notJoon/vscode-gno/pull/24))
+* the gnopls update check threw an error, which also kept the crash report prompt from showing after gnopls crashed ([#24](https://github.com/notJoon/vscode-gno/pull/24))
+* **Install Gno Language Server** in the status bar menu did not install gnopls ([#24](https://github.com/notJoon/vscode-gno/pull/24))
+* **Gno: Start language server's maintainer interface** failed with `command 'gopls.start_debugging' not found`. It now opens the gnopls server information page ([#24](https://github.com/notJoon/vscode-gno/pull/24))
 
 ## 1.0.2 (2026-11-03)
 
