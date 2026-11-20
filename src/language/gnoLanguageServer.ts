@@ -821,13 +821,12 @@ export async function shouldUpdateLanguageServer(
 		return null;
 	}
 
-	// Get the latest gopls version. If it is for nightly, using the prereleased version is ok.
-	let latestVersion = cfg.checkForUpdates === 'local' ? tool.latestVersion : await latestToolVersion(tool, false);
-
-	// If we failed to get the gopls version, pick the one we know to be latest at the time of this extension's last update
-	if (!latestVersion) {
-		latestVersion = tool.latestVersion;
-	}
+	/**
+	 * Get the latest gnopls version. If the lookup fails, fall back to the one
+	 * known to be latest at the time of this extension's last update.
+	 */
+	const latestVersion =
+		(cfg.checkForUpdates !== 'local' && (await latestToolVersion(tool, false))) || tool.latestVersion;
 	if (!latestVersion) {
 		return null;
 	}
