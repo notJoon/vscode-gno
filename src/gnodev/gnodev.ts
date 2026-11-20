@@ -73,7 +73,7 @@ function writeLog(log: GnodevLog) {
  * upward, so this loads the package or workspace of the file as running gnodev
  * there in a terminal would. Without a file, it runs in the workspace folder.
  */
-export const startGnodev: CommandFactory = (ctx) => () => start(ctx.extensionUri);
+export const startGnodev: CommandFactory = () => () => start();
 
 /** Returns the URI of the active editor, or of a visible Gno editor when a webview has focus. */
 export function gnoEditorUri(): vscode.Uri | undefined {
@@ -82,7 +82,7 @@ export function gnoEditorUri(): vscode.Uri | undefined {
 	return editor?.document.uri;
 }
 
-async function start(extensionUri: vscode.Uri, preview?: RenderPreview) {
+async function start(preview?: RenderPreview) {
 	// Wait for the previous gnodev to release its ports. Loop as another start
 	// may have spawned or stopped one meanwhile.
 	let exit: Promise<void>;
@@ -126,7 +126,7 @@ async function start(extensionUri: vscode.Uri, preview?: RenderPreview) {
 			// gnodev logs "gnoweb started" and "node is ready" before gnoweb listens,
 			// and exits right after when listening fails, such as on a port in use.
 			// Wait a moment so that only the error is shown then.
-			setTimeout(() => server === current && onReady(extensionUri, current, openBrowser), READY_DELAY_MS);
+			setTimeout(() => server === current && onReady(current, openBrowser), READY_DELAY_MS);
 		}
 	});
 	readline.createInterface({ input: proc.stderr }).on('line', (line) => {
@@ -161,7 +161,7 @@ async function start(extensionUri: vscode.Uri, preview?: RenderPreview) {
 	});
 }
 
-async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: string) {
+async function onReady(s: GnodevServer, openBrowser: string) {
 	s.ready = true;
 	// gnoweb is started before the node is ready, so no address means `-no-web`.
 	if (!s.addr) {
@@ -175,11 +175,11 @@ async function onReady(extensionUri: vscode.Uri, s: GnodevServer, openBrowser: s
 	s.externalUri = externalUri;
 	vscode.window.showInformationMessage(`gnodev started at ${s.addr}`);
 	if (s.preview) {
-		showPreview(extensionUri, s, panelColumn(openBrowser));
+		showPreview(s, panelColumn(openBrowser));
 	} else if (openBrowser === 'external') {
 		vscode.env.openExternal(externalUri);
 	} else if (openBrowser !== 'none') {
-		showPanel(extensionUri, s, externalUri.toString(), panelColumn(openBrowser));
+		showPanel(s, externalUri.toString(), panelColumn(openBrowser));
 	}
 }
 
@@ -191,13 +191,7 @@ function panelColumn(openBrowser: string): vscode.ViewColumn {
  * Shows gnoweb in the panel, revealing it in `column` if given. A preview
  * reveals it without taking the focus, so that editing can go on.
  */
-function showPanel(
-	extensionUri: vscode.Uri,
-	s: GnodevServer,
-	url: string,
-	column?: vscode.ViewColumn,
-	preserveFocus = false
-) {
+function showPanel(s: GnodevServer, url: string, column?: vscode.ViewColumn, preserveFocus = false) {
 	if (!s.panel) {
 		s.panel = vscode.window.createWebviewPanel(
 			VIEW_TYPE,
@@ -208,10 +202,6 @@ function showPanel(
 				retainContextWhenHidden: true
 			}
 		);
-		s.panel.iconPath = {
-			light: vscode.Uri.joinPath(extensionUri, 'media', 'gno-icon-light.png'),
-			dark: vscode.Uri.joinPath(extensionUri, 'media', 'gno-icon-dark.png')
-		};
 		// Closing gnoweb stops gnodev, as the editor button is the only other control.
 		s.panel.onDidDispose(() => {
 			s.panel = undefined;
@@ -237,12 +227,12 @@ function showPanel(
 	}
 }
 
-function showPreview(extensionUri: vscode.Uri, s: GnodevServer, column?: vscode.ViewColumn) {
+function showPreview(s: GnodevServer, column?: vscode.ViewColumn) {
 	if (!s.externalUri || !s.preview) {
 		return;
 	}
 	const urlPath = renderUrlPath(s.preview.module, s.preview.path) ?? '';
-	showPanel(extensionUri, s, s.externalUri.toString().replace(/\/$/, '') + urlPath, column, true);
+	showPanel(s, s.externalUri.toString().replace(/\/$/, '') + urlPath, column, true);
 }
 
 /**
@@ -312,7 +302,7 @@ export async function editorRealm(uri: vscode.Uri | undefined): Promise<string |
  * panel, starting gnodev if it is not running. Without a `path` argument, the
  * path passed to `Render` is asked for.
  */
-export const previewRender: CommandFactory = (ctx) => async (args?: { path?: string }) => {
+export const previewRender: CommandFactory = () => async (args?: { path?: string }) => {
 	const uri = gnoEditorUri();
 	const module = await editorRealm(uri);
 	if (!module) {
@@ -334,17 +324,13 @@ export const previewRender: CommandFactory = (ctx) => async (args?: { path?: str
 	}
 	const preview = { module, path: renderPath.trim() };
 	if (!server) {
-		await start(ctx.extensionUri, preview);
+		await start(preview);
 		return;
 	}
 	server.preview = preview;
 	void warnIfNotLoaded(server, uri!, module);
 	if (server.externalUri) {
-		showPreview(
-			ctx.extensionUri,
-			server,
-			panelColumn(getGnoConfig(uri).get<string>('gnodev.openBrowser', 'beside'))
-		);
+		showPreview(server, panelColumn(getGnoConfig(uri).get<string>('gnodev.openBrowser', 'beside')));
 	} else if (server.ready && !server.addr) {
 		vscode.window.showErrorMessage('gnoweb is disabled. Remove -no-web from gno.gnodev.flags to preview Render.');
 	}
@@ -386,7 +372,7 @@ export function setupRenderPreview(ctx: vscode.ExtensionContext) {
 			const module = await editorRealm(editor.document.uri);
 			if (module && module !== s.preview.module && server === s && s.preview) {
 				s.preview = { module, path: '' };
-				showPreview(ctx.extensionUri, s);
+				showPreview(s);
 				void warnIfNotLoaded(s, editor.document.uri, module);
 			}
 		})

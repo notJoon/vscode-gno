@@ -110,11 +110,7 @@
         "aliases": [
           "Gno"
         ],
-        "configuration": "./languages/gno.mod.language-configuration.json",
-        "icon": {
-          "dark": "media/gno-icon-dark.png",
-          "light": "media/gno-icon-light.png"
-        }
+        "configuration": "./languages/gno.mod.language-configuration.json"
       },
       {
         "id": "gnomod",
@@ -124,11 +120,7 @@
         "aliases": [
           "gnomod.toml"
         ],
-        "configuration": "./languages/gnomod.language-configuration.json",
-        "icon": {
-          "dark": "media/gno-icon-dark.png",
-          "light": "media/gno-icon-light.png"
-        }
+        "configuration": "./languages/gnomod.language-configuration.json"
       },
       {
         "id": "gno.mod",
@@ -137,11 +129,7 @@
         ],
         "aliases": [
           "Gno Module File"
-        ],
-        "icon": {
-          "dark": "media/gno-icon-dark.png",
-          "light": "media/gno-icon-light.png"
-        }
+        ]
       }
     ],
     "grammars": [
@@ -1487,7 +1475,6 @@
         {
           "id": "gno.explorer",
           "name": "gno",
-          "icon": "media/gno-icon-dark.png",
           "when": "gno.showExplorer"
         }
       ]
