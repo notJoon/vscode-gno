@@ -371,7 +371,7 @@ export class GoTestResolver {
 				return existing;
 			}
 
-			const srcPath = path.join(getCurrentGoPath(uri), 'src');
+			const srcPath = path.join(getCurrentGoPath(), 'src');
 			const label = uri.path.startsWith(srcPath) ? uri.path.substring(srcPath.length + 1) : uri.path;
 			item = this.getOrCreateItem(undefined, label, uri, 'package');
 		}

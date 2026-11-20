@@ -7,10 +7,6 @@ import vscode = require('vscode');
 import { DocumentSymbolRequest } from 'vscode-languageserver-protocol';
 import { GoExtensionContext } from './context';
 
-export function GoDocumentSymbolProvider(goCtx: GoExtensionContext): GoplsDocumentSymbolProvider {
-	return new GoplsDocumentSymbolProvider(goCtx);
-}
-
 export class GoplsDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 	constructor(private readonly goCtx: GoExtensionContext) {}
 

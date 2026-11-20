@@ -13,7 +13,7 @@ import util = require('util');
 import vscode = require('vscode');
 
 import { toolExecutionEnvironment } from './gnoEnv';
-import { GoDocumentSymbolProvider } from './gnoDocumentSymbols';
+import { GoplsDocumentSymbolProvider } from './gnoDocumentSymbols';
 import { getBinPath, LineBuffer, resolvePath } from './util';
 import { parseEnvFile } from './utils/envUtils';
 import { getEnvPath } from './utils/pathUtils';
@@ -123,7 +123,7 @@ export async function getTestFunctions(
 	doc: vscode.TextDocument,
 	token?: vscode.CancellationToken
 ): Promise<vscode.DocumentSymbol[] | undefined> {
-	const documentSymbolProvider = GoDocumentSymbolProvider(goCtx);
+	const documentSymbolProvider = new GoplsDocumentSymbolProvider(goCtx);
 	const symbols = await documentSymbolProvider.provideDocumentSymbols(doc);
 
 	if (!symbols || symbols.length === 0 || !symbols[0]) {

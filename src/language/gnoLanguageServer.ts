@@ -39,7 +39,6 @@ import { getFromGlobalState, updateGlobalState } from '../stateUtils';
 import {
 	getBinPath,
 	getCheckForToolsUpdatesConfig,
-	getCurrentGoPath,
 	getGoVersion,
 	getWorkspaceFolderPath,
 	removeDuplicateDiagnostics,
@@ -686,13 +685,6 @@ Please try reinstalling it.`);
  */
 export function getLanguageServerToolPath(): string | undefined {
 	const goConfig = getGnoConfig();
-	// Check that all workspace folders are configured with the same GOPATH.
-	if (!allFoldersHaveSameGopath()) {
-		vscode.window.showInformationMessage(
-			`The Gno language server is currently not supported in a multi-root set-up with different GNOPATHs (${gopathsPerFolder()}).`
-		);
-		return;
-	}
 	// Get the path to gopls (getBinPath checks for alternate tools).
 	const goplsBinaryPath = getBinPath('gnopls');
 	if (path.isAbsolute(goplsBinaryPath)) {
@@ -713,22 +705,6 @@ Please install it and reload this VS Code window.`
 
 	// Prompt the user to install gopls.
 	void promptForMissingTool('gnopls');
-}
-
-function allFoldersHaveSameGopath(): boolean {
-	if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length <= 1) {
-		return true;
-	}
-	const tempGopath = getCurrentGoPath(vscode.workspace.workspaceFolders[0].uri);
-	return vscode.workspace.workspaceFolders.find((x) => tempGopath !== getCurrentGoPath(x.uri)) ? false : true;
-}
-
-function gopathsPerFolder(): string[] {
-	const result: string[] = [];
-	for (const folder of vscode.workspace.workspaceFolders ?? []) {
-		result.push(getCurrentGoPath(folder.uri));
-	}
-	return result;
 }
 
 export async function shouldUpdateLanguageServer(

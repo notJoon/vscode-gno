@@ -8,7 +8,6 @@ export const allToolsInformation: { [key: string]: Tool } = {
 		name: 'gnopls',
 		importPath: 'github.com/gnoverse/gnopls',
 		modulePath: 'github.com/gnoverse/gnopls',
-		replacedByGopls: false, // lol
 		isImportant: true,
 		description: 'Language Server Protocol for Gnolang',
 		latestVersion: semver.parse('%s')

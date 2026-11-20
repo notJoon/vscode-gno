@@ -322,7 +322,6 @@ export function getBinPathWithExplanation(
 	return getBinPathWithPreferredGopathGorootWithExplanation(
 		tool,
 		tool === 'go' ? [] : [getCurrentGoPath()],
-		undefined,
 		selectedGoPath ?? (alternateToolPath && resolvePath(substituteEnv(alternateToolPath))),
 		useCache
 	);
@@ -334,18 +333,17 @@ export function substituteEnv(input: string): string {
 	});
 }
 
-let currentGopath = '';
-export function getCurrentGoPath(workspaceUri?: vscode.Uri): string {
-	currentGopath = process.env['GOPATH'] ?? '';
-	return currentGopath;
+export function getCurrentGoPath(): string {
+	return process.env['GOPATH'] ?? '';
 }
 
 export function getModuleCache(): string | undefined {
 	if (process.env['GOMODCACHE']) {
 		return process.env['GOMODCACHE'];
 	}
-	if (currentGopath) {
-		return path.join(currentGopath.split(path.delimiter)[0], 'pkg', 'mod');
+	const gopath = getCurrentGoPath();
+	if (gopath) {
+		return path.join(gopath.split(path.delimiter)[0], 'pkg', 'mod');
 	}
 }
 
@@ -647,14 +645,11 @@ export function removeDuplicateDiagnostics(
 
 /**
  * Removes any diagnostics in otherDiagnostics, where there is a diagnostic in
- * buildDiagnostics on the same line.
+ * keep on the same line.
  */
-function deDupeDiagnostics(
-	buildDiagnostics: vscode.Diagnostic[],
-	otherDiagnostics: vscode.Diagnostic[]
-): vscode.Diagnostic[] {
-	const buildDiagnosticsLines = buildDiagnostics.map((x) => x.range.start.line);
-	return otherDiagnostics.filter((x) => buildDiagnosticsLines.indexOf(x.range.start.line) === -1);
+function deDupeDiagnostics(keep: vscode.Diagnostic[], otherDiagnostics: vscode.Diagnostic[]): vscode.Diagnostic[] {
+	const keepLines = keep.map((x) => x.range.start.line);
+	return otherDiagnostics.filter((x) => keepLines.indexOf(x.range.start.line) === -1);
 }
 
 function mapSeverityToVSCodeSeverity(sev: string): vscode.DiagnosticSeverity {

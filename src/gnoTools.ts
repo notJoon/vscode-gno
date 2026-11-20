@@ -14,7 +14,6 @@ export interface Tool {
 	importPath: string;
 	modulePath: string;
 	isImportant: boolean;
-	replacedByGopls?: boolean;
 	description: string;
 
 	// If set, this string will be used when installing the tool
@@ -48,7 +47,7 @@ export interface ToolAtVersion extends Tool {
 	version?: semver.SemVer;
 }
 
-export function getImportPathWithVersion(tool: Tool, version: semver.SemVer | string | undefined | null): string {
+export function getImportPathWithVersion(tool: Tool, version?: semver.SemVer | string | null): string {
 	const importPath = tool.importPath;
 	if (version) {
 		if (version instanceof semver.SemVer) {
@@ -73,19 +72,13 @@ export function getTool(name: string): Tool {
 }
 
 export function getConfiguredTools(goConfig: { [key: string]: any }, goplsConfig: { [key: string]: any }): Tool[] {
-	// If language server is enabled, don't suggest tools that are replaced by gopls.
-	// TODO(github.com/golang/vscode-go/issues/388): decide what to do when
-	// the go version is no longer supported by gopls while the legacy tools are
-	// no longer working (or we remove the legacy language feature providers completely).
 	const useLanguageServer = goConfig['useLanguageServer'];
 
 	const tools: Tool[] = [];
 	function maybeAddTool(name: string) {
 		const tool = allToolsInformation[name];
 		if (tool) {
-			if (!useLanguageServer || !tool.replacedByGopls) {
-				tools.push(tool);
-			}
+			tools.push(tool);
 		}
 	}
 

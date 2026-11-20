@@ -42,7 +42,6 @@ export function getBinPathFromEnvVar(
 export function getBinPathWithPreferredGopathGorootWithExplanation(
 	toolName: string,
 	preferredGopaths: string[],
-	preferredGoroot?: string,
 	alternateTool?: string,
 	useCache = true
 ): { binPath: string; why?: string } {
@@ -51,7 +50,7 @@ export function getBinPathWithPreferredGopathGorootWithExplanation(
 		return { binPath: alternateTool, why: 'alternateTool' };
 	}
 
-	// FIXIT: this cache needs to be invalidated when go.goroot or go.alternateTool is changed.
+	/** FIXIT: this cache needs to be invalidated when gno.alternateTools is changed. */
 	if (useCache && binPathCache[toolName]) {
 		return { binPath: binPathCache[toolName], why: 'cached' };
 	}
@@ -82,7 +81,7 @@ export function getBinPathWithPreferredGopathGorootWithExplanation(
 	}
 
 	// Check GOROOT (go, gofmt, godoc would be found here)
-	const pathFromGoRoot = getBinPathFromEnvVar(binname, preferredGoroot || getCurrentGoRoot(), true);
+	const pathFromGoRoot = getBinPathFromEnvVar(binname, getCurrentGoRoot(), true);
 	if (pathFromGoRoot) {
 		binPathCache[toolName] = pathFromGoRoot;
 		return { binPath: pathFromGoRoot, why: found('gnoroot') };

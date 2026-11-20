@@ -388,7 +388,7 @@ export async function promptForMissingTool(toolName: string) {
 		// Offer the option to install all tools.
 		installOptions.push('Install All');
 	}
-	const cmd = `go install -v ${getImportPathWithVersion(tool, undefined)}`;
+	const cmd = `go install -v ${getImportPathWithVersion(tool)}`;
 	const selected = await vscode.window.showErrorMessage(
 		`The "${tool.name}" command is not available. Run "${cmd}" to install.`,
 		...installOptions

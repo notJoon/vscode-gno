@@ -19,7 +19,7 @@ export const getConfiguredGoTools: CommandFactory = () => {
 		// create an untitled markdown document.
 		const buf = [];
 		/**
-		 * Tool's path search is done by getBinPathWithPreferredGopath
+		 * Tool's path search is done by getBinPathWithPreferredGopathGorootWithExplanation
 		 * which searches places in the following order
 		 * 1) absolute path for the alternateTool
 		 * 2) GOBIN
