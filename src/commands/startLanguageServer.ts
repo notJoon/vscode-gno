@@ -141,7 +141,7 @@ export const startGoplsMaintainerInterface: CommandFactory = (ctx, goCtx) => {
 			);
 			return;
 		}
-		vscode.commands.executeCommand('gopls.start_debugging', {}).then(undefined, (reason) => {
+		vscode.commands.executeCommand('gnopls.start_debugging', {}).then(undefined, (reason) => {
 			vscode.window.showErrorMessage(
 				`"Gno: Start language server's maintainer interface" command failed: ${reason}`
 			);

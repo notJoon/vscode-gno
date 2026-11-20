@@ -119,7 +119,7 @@ export const expandGoStatusBar: CommandFactory = (ctx, goCtx) => async () => {
 					}
 					break;
 				case 'Install Gno Language Server':
-					vscode.commands.executeCommand('gno.tools.install', [allToolsInformation['gopls']]);
+					vscode.commands.executeCommand('gno.tools.install', [allToolsInformation['gnopls']]);
 					break;
 				case "Open 'gno.work'":
 				case "Open 'gno.mod'":

@@ -362,6 +362,7 @@ export async function buildLanguageClient(
 						if (command === 'gnopls.tidy') {
 							await vscode.workspace.saveAll(false);
 						}
+						return await next(command, args);
 					} catch (e) {
 						// TODO: how to print ${e} reliably???
 						const answer = await vscode.window.showErrorMessage(
@@ -820,12 +821,14 @@ export async function shouldUpdateLanguageServer(
 		return null;
 	}
 
-	// Get the latest gopls version. If it is for nightly, using the prereleased version is ok.
-	let latestVersion = cfg.checkForUpdates === 'local' ? tool.latestVersion : await latestToolVersion(tool, false);
-
-	// If we failed to get the gopls version, pick the one we know to be latest at the time of this extension's last update
+	/**
+	 * Get the latest gnopls version. If the lookup fails, fall back to the one
+	 * known to be latest at the time of this extension's last update.
+	 */
+	const latestVersion =
+		(cfg.checkForUpdates !== 'local' && (await latestToolVersion(tool, false))) || tool.latestVersion;
 	if (!latestVersion) {
-		latestVersion = tool.latestVersion;
+		return null;
 	}
 
 	// If "gopls" is so old that it doesn't have the "gopls version" command,
@@ -838,7 +841,7 @@ export async function shouldUpdateLanguageServer(
 	// If the user's version does not contain a timestamp,
 	// default to a semver comparison of the two versions.
 	const usersVersionSemver = semver.parse(usersVersion.version, { loose: true });
-	return semver.lt(usersVersionSemver!, latestVersion!) ? latestVersion : null;
+	return semver.lt(usersVersionSemver!, latestVersion) ? latestVersion : null;
 }
 
 interface GoplsVersionOutput {
