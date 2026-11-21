@@ -24,4 +24,5 @@ third_party/
 tools/
 tsconfig.json
 mise.toml
+js-green-licenses.json
 .claude/

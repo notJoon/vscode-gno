@@ -1,0 +1,22 @@
+Gno Tools
+Copyright 2026 notJoon
+
+This product is a fork of gnoverse/vscode-gno
+(https://github.com/gnoverse/vscode-gno), licensed under the Apache License,
+Version 2.0, by the gnoverse/vscode-gno contributors. Files that come from
+gnoverse/vscode-gno have been modified by notJoon since the fork.
+
+It also includes code derived from vscode-go (https://github.com/golang/vscode-go),
+Original Work Copyright (c) 2015-2020 Microsoft Corporation and Current Work and
+Modifications Copyright (c) 2020-present The Go Authors, licensed under the MIT
+License. Source files derived from vscode-go keep their original copyright
+headers, which refer to that MIT License rather than to the LICENSE file of this
+project.
+
+The full license texts of vscode-go, of go-syntax (the source of the Gno
+grammar), and of the npm packages bundled into dist/gnoMain.js are in
+ThirdPartyNotices.txt.
+
+Gno, gno.land and the Gno logo are trademarks of their respective owners. Gno
+Tools is an independent extension and is not affiliated with or endorsed by
+them.

@@ -1015,7 +1015,7 @@ DO NOT SHARE LOGS IF YOU ARE WORKING IN A PRIVATE REPOSITORY.
 
 <OPTIONAL: ATTACH LOGS HERE>
 `;
-				const url = `https://github.com/gnoverse/vscode-gno/issues/new?title=${title}&labels=automatedReport&body=${body}`;
+				const url = `https://github.com/notJoon/vscode-gno/issues/new?title=${title}&labels=automatedReport&body=${body}`;
 				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 			break;

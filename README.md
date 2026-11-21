@@ -1,8 +1,9 @@
-# Gno for Visual Studio Code
+# Gno Tools for Visual Studio Code
 
-Welcome to the VS Code Gno extension!
+Welcome to Gno Tools, a VS Code extension for Gno!
 
-This is an independently maintained fork of [gnoverse/vscode-gno](https://github.com/gnoverse/vscode-gno).
+Gno Tools (`notJoon.gno`) is an independently maintained fork of [gnoverse/vscode-gno](https://github.com/gnoverse/vscode-gno), published as a separate extension.
+It uses the same `gno.*` commands and settings as the Gnolang extension (`Gnoverse.gnolang`), so uninstall or disable Gnolang before installing Gno Tools.
 
 This extension provides rich language support for the Gno programming language, including features such as IntelliSense, code navigation, code editing, and testing.
 
@@ -18,7 +19,7 @@ This extension provides rich language support for the Gno programming language, 
 
 2.  Install `gno`, `gnokey`, and `gnodev` by following the [Gno installation guide](https://docs.gno.land/builders/install).
 
-3.  Install the **VS Code Gnolang** extension.
+3.  Install the **Gno Tools** extension.
 
     a. Download the `.vsix` file from
      [GitHub Releases](https://github.com/notJoon/vscode-gno/releases) and install it.
@@ -101,4 +102,4 @@ Thank you to the developers of both projects for their work and for the inspirat
 
 ## License
 
-[Apache License version 2.0](./LICENSE)
+[Apache License version 2.0](./LICENSE). Parts of the extension come from projects under the MIT License, such as vscode-go; see [NOTICE](./NOTICE) and [ThirdPartyNotices.txt](./ThirdPartyNotices.txt).

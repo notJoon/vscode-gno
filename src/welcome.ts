@@ -59,7 +59,7 @@ export class WelcomePanel {
 			// Otherwise, create a new panel.
 			const panel = vscode.window.createWebviewPanel(
 				WelcomePanel.viewType,
-				'Gno for VS Code',
+				'Gno Tools',
 				column || vscode.ViewColumn.One,
 				{
 					// Enable javascript in the webview
@@ -69,7 +69,6 @@ export class WelcomePanel {
 					localResourceRoots: [joinPath(extensionUri)]
 				}
 			);
-			panel.iconPath = joinPath(extensionUri, 'media', 'gno-icon-dark.png');
 
 			WelcomePanel.currentPanel = new WelcomePanel(panel, extensionUri);
 		};
@@ -141,13 +140,11 @@ export class WelcomePanel {
 		// Local path to css styles and images
 		const scriptPathOnDisk = joinPath(this.dataroot, 'welcome.js');
 		const stylePath = joinPath(this.dataroot, 'welcome.css');
-		const logoPath = joinPath(this.dataroot, 'gno-logo.png');
 		const extensionVersion = getExtensionInfo().version;
 
 		// Uri to load styles and images into webview
 		const scriptURI = webview.asWebviewUri(scriptPathOnDisk);
 		const stylesURI = webview.asWebviewUri(stylePath);
-		const logoURI = webview.asWebviewUri(logoPath);
 
 		// Use a nonce to only allow specific scripts to be run
 		const nonce = getNonce();
@@ -163,22 +160,21 @@ export class WelcomePanel {
 				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}';">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<link href="${stylesURI}" rel="stylesheet">
-				<title>Gno for VS Code</title>
+				<title>Gno Tools</title>
 			</head>
 			<body>
 			<main class="Content">
 			<div class="Header">
-				<img src="${logoURI}" alt="Gno Logo" class="Header-logo"/>
 				<div class="Header-details">
-					<h1 class="Header-title">Gno for VS Code v${extensionVersion}</h1>
-					<p>The official Gno extension for Visual Studio Code, providing rich language support for Gno projects.</p>
+					<h1 class="Header-title">Gno Tools v${extensionVersion}</h1>
+					<p>An independent Visual Studio Code extension providing rich language support for Gno projects.</p>
 					<ul class="Header-links">
 						<!--
 							Here and elsewhere, we must use a fake anchor for command buttons, to get styling
 							consistent with links. We can't fake this using CSS, as it conflicts with theming.
 						-->
 						<li><a href="#" class="Command" data-command="openDocument" data-document="CHANGELOG.md">Release notes</a></li>
-						<li><a href="https://github.com/gnoverse/vscode-gno">GitHub</a></li>
+						<li><a href="https://github.com/notJoon/vscode-gno">GitHub</a></li>
 						<li><a href="https://discord.com/invite/gnoland">Discord</a></li>
 					</ul>
 				</div>
@@ -186,7 +182,7 @@ export class WelcomePanel {
 
 			<div class="Announcement">
 				<p>
-					<b>Thank you for installing the Gno extension!</b>
+					<b>Thank you for installing Gno Tools!</b>
 				</p>
 				<p>
 					This extension is designed to provide a smooth and efficient development experience with the Gno language.<br/> 
@@ -197,7 +193,7 @@ export class WelcomePanel {
 					<b>Acknowledgments</b>
 				</p>
 				<p>
-					This extension is inspired by the excellent work of the vscode-go extension developers. A big thank you to them for their contribution to open source!
+					This extension is a fork of gnoverse/vscode-gno, which builds on the excellent work of the vscode-go extension developers. A big thank you to them for their contribution to open source!
 				</p>
 			</div>
 
@@ -206,7 +202,7 @@ export class WelcomePanel {
 					<div class="Card-inner">
 						<p class="Card-title">Getting started</p>
 						<p class="Card-content">Learn about the Gno extension in our
-							<a href="https://github.com/gnoverse/vscode-gno/blob/main/README.md">README</a>.
+							<a href="https://github.com/notJoon/vscode-gno/blob/main/README.md">README</a>.
 						</p>
 					</div>
 				</div>
@@ -224,7 +220,7 @@ export class WelcomePanel {
 					<div class="Card-inner">
 						<p class="Card-title">Troubleshooting</p>
 						<p class="Card-content">Experiencing problems? Open an issue on 
-							<a href="https://github.com/gnoverse/vscode-gno/issues/new/choose">GitHub</a>.
+							<a href="https://github.com/notJoon/vscode-gno/issues/new/choose">GitHub</a>.
 						</p>
 					</div>
 				</div>

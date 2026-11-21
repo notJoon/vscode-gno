@@ -20,6 +20,10 @@ the local dependency.
 
 Note: We didn't test vendoring platform-dependent modules yet.
 
+`licenses/` holds the license texts of projects the extension derives from
+without an npm package, such as vscode-go. `npm run notices` copies them into
+`ThirdPartyNotices.txt` together with the licenses of the bundled npm packages.
+
 
 ## List of local modification
 

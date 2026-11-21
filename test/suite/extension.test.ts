@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 suite('Extension Test Suite', () => {
 	test('activates and registers commands', async function () {
 		this.timeout(60000);
-		const ext = vscode.extensions.getExtension('Gnoverse.gnolang');
+		const ext = vscode.extensions.getExtension('notJoon.gno');
 		assert.ok(ext, 'extension not found');
 		await ext.activate();
 		assert.ok(ext.isActive);
